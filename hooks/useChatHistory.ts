@@ -6,6 +6,11 @@ import { useChatStore } from "@/stores/chatStore";
 import api from "@/lib/axios";
 import { saveChatOffline, getChatOffline } from "@/app/indexDB/messageDB";
 import { secureDecryptMessage } from "@/helper/E2EHelper";
+import {
+  decryptGroupMessage,
+  isGroupEncrypted,
+  loadGroupSenderKeys,
+} from "@/helper/groupE2EHelper";
 
 interface RawMessage {
   _id: string;
@@ -92,6 +97,35 @@ const safeDecryptReplyTo = async (
   return { ...replyTo, content: decryptedObj.text } as Message["replyTo"];
 };
 
+// ✅ group message decrypt — no counter, random IV handles uniqueness
+const safeDecryptGroup = async (
+  content: string,
+  chatId: string,
+): Promise<string> => {
+  if (!isGroupEncrypted(content)) return content;
+  try {
+    return await decryptGroupMessage(content, chatId);
+  } catch (err) {
+    console.error(
+      "[GroupE2E] decryptGroupMessage failed:",
+      err,
+      "| content:",
+      content.slice(0, 60),
+    );
+    return "🔒 [Encrypted Message]";
+  }
+};
+
+const safeDecryptGroupReplyTo = async (
+  replyTo: RawMessage["replyTo"] | undefined | null,
+  chatId: string,
+): Promise<Message["replyTo"]> => {
+  if (!replyTo) return null;
+  if (!isGroupEncrypted(replyTo.content)) return replyTo as Message["replyTo"];
+  const decrypted = await safeDecryptGroup(replyTo.content, chatId);
+  return { ...replyTo, content: decrypted } as Message["replyTo"];
+};
+
 // ==========================================
 export const useChatHistory = (
   myId: string,
@@ -102,7 +136,6 @@ export const useChatHistory = (
   const apiLoadedRef = useRef(false);
   const prevChatIdRef = useRef<string | undefined>(chatId);
 
-  // chat switch এ refs reset — useEffect এ করতে হবে, render body তে ref access নিষেধ
   useEffect(() => {
     if (prevChatIdRef.current === chatId) return;
     prevChatIdRef.current = chatId;
@@ -117,45 +150,87 @@ export const useChatHistory = (
     queryFn: async ({ pageParam }) => {
       const contact = useChatStore
         .getState()
-        .contacts.find((c) => c._id === contactId);
-      const peerPublicKey = contact?.publicKey;
+        .contacts.find((c) => c._id === contactId || c.customChatId === chatId);
 
-      //  IndexDB — background load, scroll trigger করবে না
+      const peerPublicKey = contact?.publicKey;
+      const isGroup = contact?.isGroupChat ?? false;
+
+      // ✅ group — first load এ participants থেকে sender keys load
+      if (isGroup && chatId && !pageParam) {
+        const members = (contact?.participants ?? []).filter(
+          (p: any) => p.publicKey,
+        );
+        console.log(
+          "[GroupE2E] participants found:",
+          members.length,
+          members.map((p: any) => ({
+            id: (p._id ?? p.userId)?.toString(),
+            hasKey: !!p.publicKey,
+          })),
+        );
+
+        if (members.length > 0) {
+          const senderPublicKeys = new Map<string, string>(
+            members.map((p: any) => [
+              (p._id ?? p.userId)?.toString(),
+              p.publicKey,
+            ]),
+          );
+          console.log("[GroupE2E] loading sender keys for:", [
+            ...senderPublicKeys.keys(),
+          ]);
+          await loadGroupSenderKeys(chatId, senderPublicKeys).catch((err) => {
+            console.error("[GroupE2E] loadGroupSenderKeys failed:", err);
+          });
+          console.log("[GroupE2E] sender keys load done");
+        } else {
+          console.warn(
+            "[GroupE2E] no participants with publicKey — cannot load sender keys",
+          );
+        }
+      }
+
+      // IndexDB offline load
       if (!pageParam) {
         getChatOffline(chatId ?? "")
           .then(async (offlineMessages) => {
             if (!offlineMessages?.length) return;
-            const decrypted = await Promise.all(
-              offlineMessages.slice(-50).map(async (m: any) => {
-                const raw =
-                  typeof m.content === "string"
-                    ? m.content
-                    : m.content?.text || m.content?.content || "";
-                const dec =
-                  peerPublicKey && chatId
-                    ? await safeDecrypt(raw, chatId, peerPublicKey)
-                    : {
-                        text: raw,
-                        flags: { isViewOnce: false },
-                        conditions: "NONE",
-                      };
-                const replyTo =
-                  peerPublicKey && chatId
-                    ? await safeDecryptReplyTo(m.replyTo, chatId, peerPublicKey)
-                    : (m.replyTo ?? null);
-                return {
-                  ...m,
-                  content: dec.text,
-                  isBurn: dec.flags?.isViewOnce || false,
-                  conditions: dec.conditions || "NONE",
-                  encryptedContent: raw,
-                  replyTo,
-                  _isOffline: true,
-                };
-              }),
-            );
-            // API data আসার আগে পর্যন্তই offline দেখাবে
-            // API load হলে নিচের effect replace করে দেবে
+
+            // ✅ sequential — group decrypt order matters
+            const decrypted: any[] = [];
+            for (const m of offlineMessages.slice(-50)) {
+              const raw =
+                typeof m.content === "string"
+                  ? m.content
+                  : m.content?.text || m.content?.content || "";
+
+              let text = raw;
+              let replyTo = m.replyTo ?? null;
+
+              if (isGroup && chatId) {
+                text = await safeDecryptGroup(raw, chatId);
+                replyTo = await safeDecryptGroupReplyTo(m.replyTo, chatId);
+              } else if (peerPublicKey && chatId) {
+                const dec = await safeDecrypt(raw, chatId, peerPublicKey);
+                text = dec.text;
+                replyTo = await safeDecryptReplyTo(
+                  m.replyTo,
+                  chatId,
+                  peerPublicKey,
+                );
+              }
+
+              decrypted.push({
+                ...m,
+                content: text,
+                isBurn: false,
+                conditions: "NONE",
+                encryptedContent: raw,
+                replyTo,
+                _isOffline: true,
+              });
+            }
+
             if (!apiLoadedRef.current) {
               const cur = useChatStore.getState().messages;
               useChatStore.setState({
@@ -168,42 +243,77 @@ export const useChatHistory = (
           .catch(() => {});
       }
 
-      //  API fetch
+      // API fetch
       const cursor = pageParam ? `&before=${pageParam}` : "";
       const { data } = await api(
         `/chats/${myId}/${chatId}/${contactId}/?limit=20${cursor}`,
       );
       if (!data.success) throw new Error("Failed to load messages from server");
 
-      const messages: Message[] = await Promise.all(
-        data.messages.map(async (m: RawMessage) => {
+      // ✅ sequential for group — parallel ok for 1-1
+      const messages: Message[] = [];
+
+      if (isGroup && chatId) {
+        for (const m of data.messages) {
           const raw = m.content;
-          const dec =
-            peerPublicKey && chatId
-              ? await safeDecrypt(m.content, chatId, peerPublicKey)
-              : {
-                  text: m.content,
-                  flags: { isViewOnce: false },
-                  conditions: "NONE",
-                };
-          const replyTo =
-            peerPublicKey && chatId
-              ? await safeDecryptReplyTo(m.replyTo, chatId, peerPublicKey)
-              : (m.replyTo ?? null);
-          return {
+          console.log(
+            `[GroupE2E] decrypting msg ${m._id} | content: ${raw.slice(0, 40)}...`,
+          );
+          const text = await safeDecryptGroup(raw, chatId);
+          console.log(`[GroupE2E] result: ${text.slice(0, 40)}`);
+          const replyTo = await safeDecryptGroupReplyTo(m.replyTo, chatId);
+
+          messages.push({
             ...m,
-            content: dec.text,
-            isBurn: dec.flags?.isViewOnce || false,
-            conditions: dec.conditions || "NONE",
+            content: text,
+            isBurn: false,
+            conditions: "NONE",
             encryptedContent: raw,
             replyTo,
             status:
               m.senderId === myId
                 ? (m.messageStatus as MessageStatus)
                 : undefined,
-          } as Message & { encryptedContent?: string };
-        }),
-      );
+          } as Message & { encryptedContent?: string });
+        }
+      } else {
+        // 1-1 — parallel fine
+        const results = await Promise.all(
+          data.messages.map(async (m: RawMessage) => {
+            const raw = m.content;
+            let text = raw;
+            let isBurn = false;
+            let conditions = "NONE";
+            let replyTo: Message["replyTo"] = null;
+
+            if (peerPublicKey && chatId) {
+              const dec = await safeDecrypt(m.content, chatId, peerPublicKey);
+              text = dec.text;
+              isBurn = dec.flags?.isViewOnce || false;
+              conditions = dec.conditions || "NONE";
+              replyTo = await safeDecryptReplyTo(
+                m.replyTo,
+                chatId,
+                peerPublicKey,
+              );
+            }
+
+            return {
+              ...m,
+              content: text,
+              isBurn,
+              conditions,
+              encryptedContent: raw,
+              replyTo,
+              status:
+                m.senderId === myId
+                  ? (m.messageStatus as MessageStatus)
+                  : undefined,
+            } as Message & { encryptedContent?: string };
+          }),
+        );
+        messages.push(...results);
+      }
 
       if (!pageParam) apiLoadedRef.current = true;
 
@@ -229,32 +339,24 @@ export const useChatHistory = (
     refetchOnMount: false,
   });
 
-  //  Merge effect
+  // Merge effect
   useEffect(() => {
     if (!query.data) return;
     if (useChatStore.getState().activeContact?.customChatId !== chatId) return;
 
-    // pages[0] = most recent 20, pages[1] = older 20, ...
-    // flatMap → sort ascending → সব ঠিক
     const allQueryMsgs = [...query.data.pages].flatMap((p) => p.messages);
     const queryIds = new Set(allQueryMsgs.map((m) => m._id));
-
     const currentStore = useChatStore.getState().messages;
 
-    // store এ আছে কিন্তু query তে নেই এমন সব messages রাখো
-    // এর মধ্যে আছে: socket messages, sent-but-not-yet-fetched messages (audio/video)
     const nonQueryMsgs = currentStore.filter((m) => {
       if (!m._id) return false;
-      if (queryIds.has(m._id)) return false; // query তে আছে — skip
-      if ((m as any)._isOffline) return false; // offline cache — skip
-      return true; // socket, just-sent, temp সব রাখো
+      if (queryIds.has(m._id)) return false;
+      if ((m as any)._isOffline) return false;
+      return true;
     });
 
-    // socket IDs track করো (temp বাদে)
     nonQueryMsgs.forEach((m) => {
-      if (!(m as any).isTemp) {
-        socketMsgIdsRef.current.add(m._id!);
-      }
+      if (!(m as any).isTemp) socketMsgIdsRef.current.add(m._id!);
     });
 
     const final = sortByTime(
@@ -263,7 +365,6 @@ export const useChatHistory = (
 
     useChatStore.setState({ messages: final });
 
-    // IndexDB save
     if (final.length > 0) {
       saveChatOffline(
         chatId ?? "",

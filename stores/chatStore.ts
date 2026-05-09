@@ -14,17 +14,23 @@ import { useAuthStore } from "@/stores/authStore";
 import api from "@/lib/axios";
 import { secureDecryptMessage, secureEncryptMessage } from "@/helper/E2EHelper";
 import { ChatSettings, useChatSettingsStore } from "./chatSettingsStore";
+import {
+  encryptGroupMessage,
+  decryptGroupMessage,
+  isGroupEncrypted,
+  loadGroupSenderKeys,
+  rotateGroupSenderKey,
+  initGroupSenderKey,
+  ensureGroupSenderKey,
+} from "@/helper/groupE2EHelper";
 
 // ==========================================
 // HELPERS
 // ==========================================
-
-// check and ensure keys exist before encryption/decryption
 const isEncrypted = (text: unknown): boolean =>
   typeof text === "string" &&
   (text.startsWith("v1:") || text.startsWith("v4:"));
 
-//content decrypt
 const safeDecrypt = async (
   content: string,
   chatId: string,
@@ -39,14 +45,13 @@ const safeDecrypt = async (
   }
 };
 
-// replyTo decrypt
 const safeDecryptReplyTo = async (
   replyTo: Message["replyTo"],
   chatId: string,
   publicKey: string,
 ): Promise<Message["replyTo"]> => {
   if (!replyTo?.content) return replyTo;
-  if (!isEncrypted(replyTo.content)) return replyTo; // if plan text , does not touch it
+  if (!isEncrypted(replyTo.content)) return replyTo;
   const decryptedContent = await safeDecrypt(
     replyTo.content,
     chatId,
@@ -273,15 +278,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           c.customChatId === chatId ? { ...c, isPinned: !c.isPinned } : c,
         ),
       }));
-      getQueryClient().setQueryData(
-        ["contacts"],
-        (old: Contact[] | undefined) => {
-          if (!old) return old;
-          return old.map((c) =>
-            c._id === chatId ? { ...c, isPinned: !c.isPinned } : c,
-          );
-        },
-      );
     } catch (error) {
       console.error("Toggle pin failed", error);
     }
@@ -295,15 +291,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           c.customChatId === chatId ? { ...c, isFavorite: !c.isFavorite } : c,
         ),
       }));
-      getQueryClient().setQueryData(
-        ["contacts"],
-        (old: Contact[] | undefined) => {
-          if (!old) return old;
-          return old.map((c) =>
-            c._id === chatId ? { ...c, isFavorite: !c.isFavorite } : c,
-          );
-        },
-      );
     } catch (error) {
       console.error("Toggle favorite failed", error);
     }
@@ -353,17 +340,12 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       isTemp: false,
     };
 
-    // messages এ replace করো
     set((s) => ({
       messages: s.messages.map((m) => (m._id === tempId ? realMsg : m)),
     }));
-
-    // React Query cache এও replace করো
     updateMessagesCache(chatId, (old) =>
       old.map((m) => (m._id === tempId ? realMsg : m)),
     );
-
-    // contacts lastMessage update — getAttachmentPreview দিয়ে সব type handle
     set((s) => ({
       contacts: s.contacts
         .map((c) =>
@@ -408,11 +390,8 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       reconnectionDelay: 1000,
       withCredentials: true,
     });
-    // when socket connects, emit setup with userId to register presence and join personal room
-    if (myId) {
-      socket.emit("setup", myId);
-    }
-    // if any room alrady open ,reconect to that room
+
+    if (myId) socket.emit("setup", myId);
     if (activeContact?.customChatId) {
       socket.emit("join_chat", activeContact.customChatId);
     }
@@ -420,21 +399,91 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     set({ socket });
 
     // ==========================================
-    // RECEIVE MESSAGE
+    // 1-1 RECEIVE — existing same
     // ==========================================
-    socket.on("receive_private_message", async (data: Message) => {
+    socket.on("receive_private_message", async (data: any) => {
       const { activeContact, contacts } = get();
+
+      const targetContact = contacts.find(
+        (c) => c.customChatId === data.chatId || c._id === data.chatId,
+      );
+
+      const isGroup = !!data.isGroupChat || targetContact?.isGroupChat;
+      const targetChatId = targetContact?.customChatId ?? data.chatId;
+
+      if (isGroup) {
+        if (isGroupEncrypted(data.content)) {
+          try {
+            data.content = await decryptGroupMessage(
+              data.content,
+              targetChatId,
+            );
+          } catch {
+            data.content = "🔒 [Encrypted Message]";
+          }
+        }
+
+        if (targetChatId === activeContact?.customChatId) {
+          set((s) => {
+            const exists = s.messages.some((m) => m._id === data._id);
+            if (exists) return s;
+            return {
+              messages: [
+                ...s.messages,
+                { ...data, status: MessageStatus.READ },
+              ],
+              contacts: s.contacts.map((c) =>
+                c.customChatId === targetChatId
+                  ? {
+                      ...c,
+                      unreadCount: 0,
+                      lastMessage: {
+                        content: data.content,
+                        createdAt: data.createdAt || new Date().toISOString(),
+                      },
+                    }
+                  : c,
+              ),
+            };
+          });
+          updateMessagesCache(targetChatId, (old) => {
+            const exists = old.some((m) => m._id === data._id);
+            if (exists) return old;
+            return [...old, { ...data, status: MessageStatus.READ }];
+          });
+        } else {
+          set((s) => ({
+            contacts: s.contacts
+              .map((c) =>
+                c.customChatId === targetChatId
+                  ? {
+                      ...c,
+                      unreadCount: (c.unreadCount || 0) + 1,
+                      lastMessage: {
+                        content: data.content,
+                        createdAt: data.createdAt || new Date().toISOString(),
+                      },
+                    }
+                  : c,
+              )
+              .sort(
+                (a, b) =>
+                  new Date(b.lastMessage?.createdAt || 0).getTime() -
+                  new Date(a.lastMessage?.createdAt || 0).getTime(),
+              ),
+          }));
+        }
+        return;
+      }
+
       const sender = contacts.find((c) => c._id === data.senderId);
 
       if (sender?.publicKey && sender?.customChatId) {
-        //  decrypt main content
         data.content = await safeDecrypt(
           data.content,
           sender.customChatId,
           sender.publicKey,
         );
-
-        //  replyTo decrypt
         if (data.replyTo) {
           data.replyTo = await safeDecryptReplyTo(
             data.replyTo,
@@ -454,11 +503,20 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           return {
             messages: [...s.messages, newMsg],
             contacts: s.contacts.map((c) =>
-              c._id === data.senderId ? { ...c, unreadCount: 0 } : c,
+              c._id === data.senderId
+                ? {
+                    ...c,
+                    unreadCount: 0,
+                    lastMessage: {
+                      content: data.content,
+                      createdAt: data.createdAt || new Date().toISOString(),
+                    },
+                  }
+                : c,
             ),
           };
         });
-        updateMessagesCache(activeContact.customChatId, (old) => {
+        updateMessagesCache(activeContact!.customChatId, (old) => {
           const exists = old.some((m) => m._id === data._id);
           if (exists) return old;
           return [...old, newMsg];
@@ -468,6 +526,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           senderId: data.senderId,
         });
       } else {
+        // ✅ অন্য 1-1 chat এ আছি — sidebar update
         set((s) => ({
           contacts: s.contacts
             .map((c) =>
@@ -476,7 +535,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
                     ...c,
                     unreadCount: (c.unreadCount || 0) + 1,
                     lastMessage: {
-                      content: data.content,
+                      content: data.content, // ✅ decrypted
                       createdAt: data.createdAt || new Date().toISOString(),
                     },
                   }
@@ -489,13 +548,47 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             ),
         }));
         socket.emit("message_delivered", {
-          chatRoomId: activeContact?.customChatId,
+          chatRoomId: sender?.customChatId,
           senderId: data.senderId,
         });
       }
     });
 
-    // STATUS ACKS
+    // ✅ Key rotation — member add/remove হলে
+    socket.on(
+      "group:key_rotation_needed",
+      async ({ chatId }: { chatId: string }) => {
+        const myId = useAuthStore.getState().myId;
+        if (!myId) return;
+        try {
+          const { data } = await api.get(
+            `/groups/${chatId}/members-public-keys`,
+          );
+          await rotateGroupSenderKey(chatId, myId, data.members);
+        } catch (err) {
+          console.error("Key rotation failed:", err);
+        }
+      },
+    );
+
+    // ✅ New member join হলে — তার sender key load করো
+    socket.on(
+      "group:member_joined",
+      async ({
+        chatId,
+        memberPublicKeys,
+      }: {
+        chatId: string;
+        memberPublicKeys: Map<string, string>;
+      }) => {
+        const { activeContact } = get();
+        if (activeContact?.customChatId === chatId) {
+          await loadGroupSenderKeys(chatId, memberPublicKeys);
+        }
+      },
+    );
+
+    // STATUS ACKS — existing same
     socket.on("message_delivered_ack", () => {
       const chatId = get().activeContact?.customChatId;
       set((s) => ({
@@ -545,9 +638,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }
     });
 
-    // ==========================================
-    // EDIT ACK —  decrypt newContent
-    // ==========================================
     socket.on(
       "message_edited_ack",
       async ({
@@ -559,9 +649,16 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }) => {
         const { activeContact } = get();
         const chatId = activeContact?.customChatId;
-
         let decryptedContent = newContent;
-        if (activeContact?.publicKey && chatId) {
+
+        // ✅ group edit decrypt
+        if (activeContact?.isGroupChat && isGroupEncrypted(newContent)) {
+          try {
+            decryptedContent = await decryptGroupMessage(newContent, chatId!);
+          } catch {
+            decryptedContent = "🔒 [Encrypted Message]";
+          }
+        } else if (activeContact?.publicKey && chatId) {
           decryptedContent = await safeDecrypt(
             newContent,
             chatId,
@@ -584,7 +681,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       },
     );
 
-    // DELETE ACK
     socket.on(
       "message_deleted_ack",
       ({
@@ -624,6 +720,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         }
       },
     );
+
     socket.on(
       "reaction_added_ack",
       ({
@@ -649,35 +746,29 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           );
 
           let oldReaction = null;
-
           if (existingReactionIndex >= 0) {
             oldReaction = currentReactions[existingReactionIndex].emoji;
             currentReactions.splice(existingReactionIndex, 1);
           }
 
           if (oldReaction !== reaction) {
-            const userIds = [senderId];
-            currentReactions.push({ emoji: reaction, userIds });
+            currentReactions.push({ emoji: reaction, userIds: [senderId] });
           }
 
           return { ...currentMsg, reactions: currentReactions };
         };
 
-        // ১. Zustand State আপডেট
         set((s) => ({
           messages: s.messages.map((m) =>
             m._id === messageId ? applyReceivedReaction(m) : m,
           ),
         }));
-
-        // ২. React Query Cache আপডেট
         updateAllPagesCache(chatId, (m) =>
           m._id === messageId ? applyReceivedReaction(m) : m,
         );
       },
     );
 
-    // STAR ACK
     socket.on(
       "message_starred_ack",
       ({
@@ -698,11 +789,44 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         );
       },
     );
+    socket.on("last_message_update", async ({ chatId, lastMessage }: any) => {
+      const contact = get().contacts.find(
+        (c) => c.customChatId === chatId || c._id === chatId,
+      );
 
-    socket.on("last_message_update", ({ chatId, lastMessage }: any) => {
+      let content = lastMessage?.content ?? "";
+
+      if (isGroupEncrypted(content)) {
+        // group — decrypt করো
+        try {
+          content = await decryptGroupMessage(content, chatId);
+        } catch {
+          content = "🔒 New message";
+        }
+      } else if (
+        isEncrypted(content) &&
+        contact?.publicKey &&
+        contact?.customChatId
+      ) {
+        try {
+          content = await safeDecrypt(
+            content,
+            contact.customChatId,
+            contact.publicKey,
+          );
+        } catch {
+          content = "🔒 [Encrypted Message]";
+        }
+      } else {
+        // plain text — attachment preview বা as-is
+        content = getAttachmentPreview(lastMessage) || content;
+      }
+
       set((s) => ({
         contacts: s.contacts.map((c) =>
-          c.customChatId === chatId ? { ...c, lastMessage } : c,
+          c.customChatId === chatId || c._id === chatId
+            ? { ...c, lastMessage: { ...lastMessage, content } }
+            : c,
         ),
       }));
     });
@@ -731,32 +855,27 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       }));
     });
 
-    // ==========================================
-    // TYPING INDICATORS
-    // ==========================================
     socket.on("show_typing", (data: any) => {
       const { activeContact } = get();
-
-      if (data.senderId === activeContact?._id) {
-        set({ isTyping: true });
-      }
+      if (data.senderId === activeContact?._id) set({ isTyping: true });
     });
 
     socket.on("hide_typing", (data: any) => {
       const { activeContact } = get();
-
-      if (data.senderId === activeContact?._id) {
-        set({ isTyping: false });
-      }
+      if (data.senderId === activeContact?._id) set({ isTyping: false });
     });
 
     return () => socket.disconnect();
   },
 
+  // ==========================================
+  // OPEN CHAT
+  // ==========================================
   openChat: (contact: Contact | null) => {
     const { socket, activeContact, _typingTimeout } = get();
     if (_typingTimeout) clearTimeout(_typingTimeout);
     set({ isTyping: false });
+
     if (activeContact?.customChatId) {
       socket?.emit("leave_chat", activeContact.customChatId);
     }
@@ -789,15 +908,44 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       socket?.emit("join_chat", contact.customChatId);
     }
 
-    socket?.emit("mark_all_read", {
-      chatRoomId: contact.customChatId,
-      senderId: contact._id,
-    });
+    if (contact.isGroupChat && contact.customChatId) {
+      const myId = useAuthStore.getState().myId;
+      const members = (contact.participants ?? []).filter(
+        (p: any) => p.publicKey,
+      );
+
+      const senderPublicKeys = new Map(
+        members.map((p: any) => [p._id?.toString(), p.publicKey]),
+      );
+
+      // ✅ অন্যদের keys load করো
+      loadGroupSenderKeys(contact.customChatId, senderPublicKeys).catch((err) =>
+        console.error("Failed to load group sender keys:", err),
+      );
+
+      if (myId) {
+        const memberPublicKeys = members.map((p: any) => ({
+          userId: p._id?.toString(),
+          publicKey: p.publicKey,
+        }));
+
+        ensureGroupSenderKey(
+          contact.customChatId,
+          myId,
+          memberPublicKeys,
+        ).catch((err) => console.error("Failed to ensure sender key:", err));
+      }
+    }
+
+    // 1-1 chat mark as read
+    if (!contact.isGroupChat) {
+      socket?.emit("mark_all_read", {
+        chatRoomId: contact.customChatId,
+        senderId: contact._id,
+      });
+    }
   },
 
-  // ==========================================
-  // SEND MESSAGE
-  // ==========================================
   sendMessage: async () => {
     const {
       msgInput,
@@ -813,25 +961,33 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (!msgInput.trim() || !activeContact || !myId) return;
 
     const content = msgInput.trim();
-    const friendPublicKey = activeContact.publicKey;
     const chatId = activeContact.customChatId;
 
-    if (!friendPublicKey || !chatId) {
-      console.error("Public key or Chat ID is missing.");
-      return;
-    }
+    if (!chatId) return;
 
     set({ msgInput: "" });
 
     try {
-      const encryptedContent = await secureEncryptMessage(
-        content,
-        chatId,
-        friendPublicKey,
-        "text",
-      );
+      let encryptedContent: string | null = null;
+
+      if (activeContact.isGroupChat) {
+        encryptedContent = await encryptGroupMessage(content, chatId, myId);
+      } else {
+        const friendPublicKey = activeContact.publicKey;
+        if (!friendPublicKey) {
+          console.error("Public key missing");
+          return;
+        }
+        encryptedContent = await secureEncryptMessage(
+          content,
+          chatId,
+          friendPublicKey,
+          "text",
+        );
+      }
+
       if (!encryptedContent) {
-        console.error("Encryption failed, message not sent.");
+        console.error("Encryption failed");
         return;
       }
 
@@ -867,8 +1023,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         return;
       }
 
-      // NORMAL SEND
-      socket?.emit("stop_typing", { chatRoomId: chatId }); // 🌟 এখানেও chatRoomId দিতে হবে
+      socket?.emit("stop_typing", { chatRoomId: chatId });
       clearTimeout(_typingTimeout);
 
       const tempId = `temp_${Date.now()}`;
@@ -894,11 +1049,13 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
       const disappearingDuration =
         getChatSettings(chatId).disappearingTimer ?? undefined;
+
+      // ✅ same send_message event — backend isGroupChat check করবে
       socket?.emit(
         "send_message",
         {
           chatRoomId: chatId,
-          receiverId: activeContact._id,
+          receiverId: activeContact.isGroupChat ? null : activeContact._id,
           content: encryptedContent,
           replyToMessageId: replyTo?._id,
           userId: myId,
@@ -911,14 +1068,13 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
               senderId: myId,
               content,
               status: MessageStatus.SENT,
-              replyTo: plainReplyTo, // plantext replyTo
+              replyTo: plainReplyTo,
             };
-
             set((s) => ({
               messages: s.messages.map((m) => (m._id === tempId ? sentMsg : m)),
               contacts: s.contacts
                 .map((c) =>
-                  c._id === activeContact._id
+                  c._id === activeContact._id || c.customChatId === chatId
                     ? {
                         ...c,
                         lastMessage: {
@@ -952,7 +1108,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         },
       );
     } catch (error) {
-      console.error("Encryption failed while sending message:", error);
+      console.error("Send failed:", error);
     }
   },
 
@@ -1065,32 +1221,30 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (!forwardMsg || !myId) return;
 
     const targetContact = contacts.find((c) => c._id === contactId);
-    const friendPublicKey = targetContact?.publicKey;
     const chatId = targetContact?.customChatId;
     const content = forwardMsg.content;
 
-    if (!chatId) {
-      console.error("Chat ID is missing for the target contact.");
-      return;
-    }
+    if (!chatId) return;
 
     let encryptedContent = "";
     if (content?.trim()) {
-      const encryptedResult = await secureEncryptMessage(
-        content,
-        chatId,
-        friendPublicKey!,
-        "text",
-      );
-      if (!encryptedResult) {
-        console.error("Encryption failed");
-        return;
+      if (targetContact?.isGroupChat) {
+        encryptedContent = await encryptGroupMessage(content, chatId, myId);
+      } else {
+        const pubKey = targetContact?.publicKey;
+        if (!pubKey) return;
+        const encryptedResult = await secureEncryptMessage(
+          content,
+          chatId,
+          pubKey,
+          "text",
+        );
+        if (!encryptedResult) return;
+        encryptedContent = encryptedResult;
       }
-      encryptedContent = encryptedResult;
     }
 
     const now = new Date().toISOString();
-
     const attachmentData =
       forwardMsg.attachments && forwardMsg.attachments.length > 0
         ? forwardMsg.attachments.map((item: any) => ({
@@ -1109,7 +1263,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     socket?.emit(
       "send_message",
       {
-        receiverId: contactId,
+        receiverId: targetContact?.isGroupChat ? null : contactId,
         content: encryptedContent || "",
         is_forwarded: true,
         chatRoomId: chatId,
@@ -1123,7 +1277,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           const sentMsg: Message = {
             ...res.data,
             senderId: myId,
-            content, // plain text for UI
+            content,
             status: MessageStatus.SENT,
             is_forwarded: true,
             attachments: forwardMsg.attachments ?? [],
@@ -1131,12 +1285,12 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
           set((s) => ({
             messages:
-              activeContact?._id === contactId
+              activeContact?.customChatId === chatId
                 ? [...s.messages, sentMsg]
                 : s.messages,
             contacts: s.contacts
               .map((c) =>
-                c._id === contactId
+                c.customChatId === chatId
                   ? {
                       ...c,
                       lastMessage: {
@@ -1153,12 +1307,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
               ),
           }));
 
-          if (targetContact?.customChatId) {
-            updateMessagesCache(targetContact.customChatId, (old) => [
-              ...old,
-              sentMsg,
-            ]);
-          }
+          updateMessagesCache(chatId, (old) => [...old, sentMsg]);
         }
       },
     );
@@ -1173,62 +1322,45 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
     if (!chatId || !myId) return;
 
-    // ১. Optimistic Update Helper (Zustand এবং React Query উভয়ের জন্য)
     const toggleReactionLogic = (currentMsg: Message) => {
-      // ডাটাবেসের ফরম্যাটের সাথে মিল রেখে কপি তৈরি করা
       const currentReactions = Array.isArray(currentMsg.reactions)
         ? [...currentMsg.reactions]
         : [];
 
-      // ১. ইউজারের আগের কোনো রিঅ্যাকশন আছে কি না সেটা খোঁজা
       const existingReactionIndex = currentReactions.findIndex(
         (r: any) =>
           r.userId === myId || (r.userIds && r.userIds.includes(myId)),
       );
 
       let oldReaction = null;
-
-      // যদি আগে থেকে কোনো রিঅ্যাকশন থাকে, তবে সেটা রিমুভ করে দেব
       if (existingReactionIndex >= 0) {
         const existing = currentReactions[existingReactionIndex] as any;
         oldReaction = existing.reaction || existing.emoji;
         currentReactions.splice(existingReactionIndex, 1);
       }
 
-      // ২. যদি নতুন ক্লিক করা ইমোজিটা আগেরটার সমান না হয়, তার মানে সে ইমোজি চেঞ্জ করেছে
       if (oldReaction !== reaction) {
-        // নতুন রিঅ্যাকশনটি ডাটাবেসের ফরম্যাটে (Flat Object) পুশ করে দিলাম
         currentReactions.push({ userId: myId, emoji: reaction });
       }
 
       return { ...currentMsg, reactions: currentReactions };
     };
 
-    // ২. Zustand Store আপডেট করুন (সাথে সাথে স্ক্রিনে দেখানোর জন্য)
     set((s) => ({
       messages: s.messages.map((m) =>
         m._id === msg._id ? toggleReactionLogic(m) : m,
       ),
     }));
 
-    // ৩. React Query Cache আপডেট করুন (যাতে স্ক্রল বা পেজিনেট করলে ডেটা হারিয়ে না যায়)
     updateAllPagesCache(chatId, (m) =>
       m._id === msg._id ? toggleReactionLogic(m) : m,
     );
 
-    // ৪. ব্যাকএন্ডে (Socket) পাঠিয়ে দিন
     socket?.emit(
       "reaction",
-      {
-        chatId: chatId,
-        messageId: msg._id,
-        reaction: reaction,
-      },
+      { chatId, messageId: msg._id, reaction },
       (res: any) => {
-        // যদি সার্ভার থেকে error আসে, তবে চাইলে এখানে error handle করতে পারেন
-        if (res?.success === false) {
-          console.error(res.message);
-        }
+        if (res?.success === false) console.error(res.message);
       },
     );
   },
@@ -1320,7 +1452,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
   closeNewChat: () => {
     const timeoutId = get()._previewTimeout;
-
     if (
       timeoutId &&
       (typeof timeoutId === "number" ||
@@ -1328,12 +1459,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     ) {
       clearTimeout(timeoutId as any);
     }
-
-    set({
-      showNewChat: false,
-      newChatId: "",
-      _previewTimeout: undefined,
-    });
+    set({ showNewChat: false, newChatId: "", _previewTimeout: undefined });
   },
 
   openCtx: (e: React.MouseEvent, msg: Message, isMine: boolean) => {

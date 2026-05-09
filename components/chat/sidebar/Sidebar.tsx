@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useState } from "react";
 import {
@@ -24,6 +25,10 @@ import { useContacts } from "@/hooks/useContacts";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "next/navigation";
 import { getNameFallback } from "@/utils/getNameFallback";
+import { toast } from "sonner";
+import api from "@/lib/axios";
+import { initGroupSenderKey } from "@/helper/groupE2EHelper";
+import CreateGroupModal from "./CreateGroupModal";
 const TABS = [
   { key: "all", label: "All", icon: Inbox },
   { key: "unread", label: "Unread", icon: MessageSquare },
@@ -51,11 +56,65 @@ export default function Sidebar() {
   const pinnedTotal = contacts.filter((c) => c.isPinned).length;
   const favoritesTotal = contacts.filter((c) => c.isFavorite).length;
 
-
   // group chat create
-  const handleCreateGroup = () => {
-    
-  }
+  const handleCreateGroup = async (groupData: any) => {
+    const { name, description, participantIds, groupSettings } = groupData;
+
+    if (!name) {
+      toast.warning("Group name is required");
+      return;
+    }
+    if (participantIds.length < 2) {
+      toast.warning("At least 2 participants are required not including you");
+      return;
+    }
+
+    // 1. Call API to create group
+    const { data } = await api.post("/group/create", {
+      groupName: name,
+      groupDescription: description,
+      participantIds: participantIds,
+      groupSettings: groupSettings,
+    });
+
+    if (!data.success) {
+      toast.error("Failed to create group chat");
+      return;
+    }
+
+    // 2. Extract data
+    const { chat, friendsPublicKeys } = data.newGroupChat;
+
+    try {
+      await initGroupSenderKey(chat.customChatId, myId, friendsPublicKeys);
+
+      const newChatContact: Contact = {
+        _id: chat._id,
+        name: chat.groupName,
+        customChatId: chat.customChatId,
+        isGroupChat: chat.isGroupChat,
+        lastMessage: chat.lastMessage,
+        unreadCount: 0,
+        participants: chat.participants.map(
+          (p: any): Contact => ({
+            _id: p._id,
+            name: p.userName,
+            avatar: p.profilePicture,
+          }),
+        ),
+      };
+      useChatStore.setState((state) => ({
+        contacts: [newChatContact, ...state.contacts],
+      }));
+      openChat(newChatContact);
+      setOpenGroupModal(false);
+
+      toast.success("Group created successfully!");
+    } catch (error) {
+      console.error("Failed to setup group security:", error);
+      toast.error("Group created, but security setup failed.");
+    }
+  };
 
   const getBadge = (key: TabKey) => {
     if (key === "unread") return unreadTotal || null;
@@ -294,7 +353,7 @@ export default function Sidebar() {
                   : "Start a new conversation below"}
               </p>
             </div>
-          </div>  
+          </div>
         ) : (
           /* Contact list */
           <div className="pb-4">
@@ -340,11 +399,20 @@ export default function Sidebar() {
             hover:bg-slate-100 dark:hover:bg-white/5
             transition-all duration-200
           "
+          onClick={() => setOpenGroupModal(true)}
         >
           <Users className="h-4 w-4" />
           Create Group
         </Button>
       </div>
+      {openGroupModal && (
+        <CreateGroupModal
+          isOpen={openGroupModal}
+          onClose={() => setOpenGroupModal(false)}
+          myId={myId}
+          onCreateGroup={handleCreateGroup}
+        />
+      )}
     </aside>
   );
 }

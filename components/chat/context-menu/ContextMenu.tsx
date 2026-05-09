@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useChatStore } from "@/stores/chatStore";
 import { cn } from "@/lib/utils";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import EmojiPicker, { EmojiStyle, Theme } from "emoji-picker-react";
 
 const MINE_ACTIONS = [
   { id: "reply", label: "Reply", icon: Reply, danger: false },
@@ -48,7 +48,6 @@ export default function ContextMenu() {
 
   useEffect(() => {
     const close = (e: MouseEvent) => {
-      // যদি মেনুর বাইরে ক্লিক পড়ে, তবেই বন্ধ হবে
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setContextMenu(null);
       }
@@ -69,7 +68,6 @@ export default function ContextMenu() {
   return (
     <div
       ref={menuRef}
-      // 🌟 ম্যাজিক ফিক্স ১: মেনুর ভেতরে ক্লিক করলে তা যেন বাইরে না যায়
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       style={{ ...style, position: "fixed", zIndex: 9999 }}
@@ -78,6 +76,7 @@ export default function ContextMenu() {
       {showPicker ? (
         <div className="animate-in fade-in zoom-in-95 duration-150">
           <EmojiPicker
+            emojiStyle={EmojiStyle.NATIVE}
             onEmojiClick={(emojiData) => {
               handeleAddReaction(msg, emojiData.emoji);
               setContextMenu(null);
@@ -95,7 +94,7 @@ export default function ContextMenu() {
               <button
                 key={emoji}
                 onClick={(e) => {
-                  e.stopPropagation(); // ইভেন্ট বন্ধ করা
+                  e.stopPropagation();
                   handeleAddReaction(msg, emoji);
                   setContextMenu(null);
                 }}
@@ -108,7 +107,6 @@ export default function ContextMenu() {
 
             <button
               onClick={(e) => {
-                // 🌟 ম্যাজিক ফিক্স ২: + বাটনের ক্লিক আটকানো
                 e.preventDefault();
                 e.stopPropagation();
                 setShowPicker(true);

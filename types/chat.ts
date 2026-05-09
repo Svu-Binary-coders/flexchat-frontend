@@ -9,7 +9,7 @@ export enum MessageStatus {
 export interface Contact {
   _id: string;
   name: string;
-  email: string;
+  email?: string;
   avatar?: string;
   lastMessage?: { content: string; createdAt: string };
   unreadCount?: number;
@@ -18,9 +18,12 @@ export interface Contact {
   isPinned?: boolean;
   isFavorite?: boolean;
   isChatLock?: boolean;
-  publicKey: string;
-  isGroup?: boolean;
+  publicKey?: string;
+  isGroupChat?: boolean;
+  participants?: Contact[];
 }
+
+
 export interface Attachment {
   url: string;
   type: "image" | "video" | "audio" | "file" | "VoiceMessage";

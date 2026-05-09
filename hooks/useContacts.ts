@@ -34,7 +34,7 @@ export const useContacts = (userId: string) => {
       return data.contacts;
     },
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // staleTime: 5 * 60 * 1000, // 5 minutes
     meta: { persist: true },
   });
 

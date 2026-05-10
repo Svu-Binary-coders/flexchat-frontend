@@ -52,6 +52,11 @@ export interface Message {
   reactions?:
     | { [emoji: string]: string[] }
     | Array<{ emoji: string; userIds?: string[]; userId?: string }>;
+  senderDetails?: {
+    customId: string;
+    userName: string;
+    profilePicture?: string;
+  };
 }
 
 export interface ContextMenuState {

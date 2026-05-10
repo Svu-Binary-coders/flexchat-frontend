@@ -31,6 +31,7 @@ import {
   Pause,
   Mic,
   Music,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useChatStore } from "@/stores/chatStore";
@@ -62,12 +63,9 @@ function normalizeReactions(raw: any): ReactionMap {
         map[emoji] = [];
       }
 
-      // userId থাকলে সেটা পুশ করবে (Duplicate চেক করে)
       if (item.userId && !map[emoji].includes(item.userId)) {
         map[emoji].push(item.userId);
-      }
-      // যদি userIds (অ্যারে) হিসেবে আসে
-      else if (Array.isArray(item.userIds)) {
+      } else if (Array.isArray(item.userIds)) {
         item.userIds.forEach((id: string) => {
           if (!map[emoji].includes(id)) {
             map[emoji].push(id);
@@ -80,7 +78,7 @@ function normalizeReactions(raw: any): ReactionMap {
   return map;
 }
 
-// ─── Reaction Details Modal ──────────────────────────────────────────────────
+//  Reaction Details Modal
 function ReactionDetailsModal({
   reactionMap,
   onClose,
@@ -98,7 +96,7 @@ function ReactionDetailsModal({
     >
       <div
         className="bg-white dark:bg-slate-800 rounded-2xl w-80 max-h-[400px] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()} // ভেতরের ক্লিকে যেন মডাল বন্ধ না হয়
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
@@ -117,13 +115,12 @@ function ReactionDetailsModal({
         <div className="overflow-y-auto p-2 custom-scrollbar">
           {Object.entries(reactionMap).map(([emoji, userIds]) =>
             userIds.map((userId) => {
-              // স্টোর থেকে ইউজারের ডেটা বের করা
               const user = contacts.find((c) => c._id === userId);
               const name =
                 userId === myId ? "You" : user?.name || "Unknown User";
               const avatar =
                 user?.avatar ||
-                "https://cdn-icons-png.flaticon.com/512/149/149071.png"; // ডিফল্ট ছবি
+                "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
               return (
                 <div
@@ -209,7 +206,7 @@ const safeStr = (val: unknown): string => {
   return "";
 };
 
-// ─── Forwarded Label ──────────────────────────────────────────────────────────
+//  Forwarded Label
 function ForwardedLabel({ isMine }: { isMine: boolean }) {
   return (
     <div
@@ -224,7 +221,7 @@ function ForwardedLabel({ isMine }: { isMine: boolean }) {
   );
 }
 
-// ─── Reaction Bar ─────────────────────────────────────────────────────────────
+//  Reaction Bar
 function ReactionBar({
   reactions,
   myId,
@@ -635,27 +632,30 @@ function VoicePlayer({
 
 //  Reply Preview
 
-function ReplyPreview({
-  replyTo,
-  myId,
-  isMine,
-  onClick,
-}: {
-  replyTo: any;
-  myId: string;
+type ReplyPreviewProps = {
+  replyTo: Message;
+  myId?: string;
   isMine: boolean;
   onClick: () => void;
-}) {
+};
+
+function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
   const atts = replyTo.attachments ?? [];
+
   const imgs = atts.filter((a: any) => a.type === "image");
   const vids = atts.filter((a: any) => a.type === "video");
   const voices = atts.filter((a: any) => a.type === "VoiceMessage");
   const files = atts.filter(
     (a: any) => a.type === "file" || a.type === "audio",
   );
+
   const replyContent = safeStr(replyTo.content);
   const hasText = !!replyContent.trim();
-  const senderLabel = replyTo.senderId === myId ? "You" : "Message";
+
+  // ✅ senderDetails থেকে name নাও
+  const senderName =
+    replyTo.senderDetails?.userName ||
+    (replyTo.senderId === myId ? "You" : "Message");
 
   return (
     <div
@@ -664,52 +664,39 @@ function ReplyPreview({
         "flex items-center gap-2 mb-2 px-2.5 py-2 rounded-xl text-[11px] cursor-pointer hover:opacity-75 transition-opacity overflow-hidden",
         isMine
           ? "bg-white/10 border-l-2 border-white/60"
-          : "bg-slate-50 dark:bg-slate-900/60 border-l-2 border-sky-400 dark:border-sky-500",
+          : "bg-slate-50 dark:bg-slate-900/60 border-l-2 border-sky-400",
       )}
     >
       <CornerUpRight className="h-3 w-3 shrink-0 opacity-50" />
+
+      {/* ✅ Image preview */}
       {imgs.length > 0 && (
-        <div className="relative w-9 h-9 rounded-lg overflow-hidden shrink-0 ring-1 ring-white/20">
-          <img
-            src={imgs[0].url}
-            alt=""
-            className="w-full h-full object-cover"
-          />
+        <img
+          src={imgs[0].url}
+          alt=""
+          className="w-9 h-9 rounded-lg object-cover shrink-0 ring-1 ring-white/20"
+        />
+      )}
+
+      {/* ✅ Video preview */}
+      {vids.length > 0 && imgs.length === 0 && (
+        <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+          <Video className="h-4 w-4 text-white/60" />
         </div>
       )}
-      {vids.length > 0 &&
-        imgs.length === 0 &&
-        (() => {
-          const v = vids[0];
-          const thumb = v.publicId
-            ? v.url
-                .replace(
-                  "/video/upload/",
-                  "/video/upload/w_80,h_80,c_fill,so_1,q_auto,f_auto/",
-                )
-                .replace(/\.(mp4|webm|mov|mkv|avi)$/i, ".jpg")
-            : null;
-          return (
-            <div className="relative w-9 h-9 rounded-lg overflow-hidden shrink-0 bg-slate-800">
-              {thumb ? (
-                <img
-                  src={thumb}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Video className="h-4 w-4 text-white/60" />
-                </div>
-              )}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="white">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </div>
-            </div>
-          );
-        })()}
+
+      {/* ✅ File preview */}
+      {files.length > 0 && imgs.length === 0 && vids.length === 0 && (
+        <div
+          className={cn(
+            "w-9 h-9 rounded-lg flex items-center justify-center shrink-0",
+            isMine ? "bg-white/15" : "bg-slate-100 dark:bg-slate-700",
+          )}
+        >
+          <FileIcon mimeType={files[0].mimeType} className="h-4 w-4" />
+        </div>
+      )}
+
       <div className="flex flex-col min-w-0 flex-1">
         <span
           className={cn(
@@ -717,32 +704,33 @@ function ReplyPreview({
             isMine ? "text-white/70" : "text-sky-500 dark:text-sky-400",
           )}
         >
-          {senderLabel}
+          {senderName} {/* ✅ name দেখাও */}
         </span>
+
         <span className="truncate opacity-60 flex items-center gap-1">
-          {imgs.length > 0 && !hasText && (
+          {/* content আছে */}
+          {hasText && replyContent}
+
+          {/* content নেই — type দেখাও */}
+          {!hasText && imgs.length > 0 && (
             <>
               <ImageIcon className="h-3 w-3 shrink-0" /> Photo
             </>
           )}
-          {vids.length > 0 && imgs.length === 0 && !hasText && (
+          {!hasText && vids.length > 0 && imgs.length === 0 && (
             <>
               <Video className="h-3 w-3 shrink-0" /> Video
             </>
           )}
-          {voices.length > 0 &&
+          {!hasText && voices.length > 0 && (
+            <>
+              <Mic className="h-3 w-3 shrink-0" /> Voice Message
+            </>
+          )}
+          {!hasText &&
+            files.length > 0 &&
             imgs.length === 0 &&
-            vids.length === 0 &&
-            !hasText && (
-              <>
-                <Mic className="h-3 w-3 shrink-0" /> Voice Message
-              </>
-            )}
-          {files.length > 0 &&
-            imgs.length === 0 &&
-            vids.length === 0 &&
-            voices.length === 0 &&
-            !hasText && (
+            vids.length === 0 && (
               <>
                 <FileIcon
                   mimeType={files[0].mimeType}
@@ -751,13 +739,11 @@ function ReplyPreview({
                 {files[0].name ?? "File"}
               </>
             )}
-          {hasText && replyContent}
         </span>
       </div>
     </div>
   );
 }
-
 //  Status icon
 
 const StatusIcon = ({ status }: { status: MessageStatus }) => {
@@ -926,11 +912,11 @@ export default function MessageBubble({ message }: { message: Message }) {
   const attachments: any[] = (message as any).attachments ?? [];
   const uploadProgress = (message as any).uploadProgress ?? 0;
 
-  // ── Normalize forwarded flag (DB: is_forwarded, type: isForwarded) ──────
+  //  Normalize forwarded flag (DB: is_forwarded, type: isForwarded)
   const isForwarded =
     message.isForwarded ?? (message as any).is_forwarded ?? false;
 
-  // ── Normalize reactions (DB: [] or [{emoji, userIds}], type: object map) ─
+  //  Normalize reactions (DB: [] or [{emoji, userIds}], type: object map)
   const reactions = normalizeReactions(message.reactions);
   const hasReactions = Object.values(reactions).some((u) => u.length > 0);
 
@@ -1048,7 +1034,7 @@ export default function MessageBubble({ message }: { message: Message }) {
             >
               {renderCtxBtn("absolute top-2 right-2")}
 
-              {/* ── Forwarded label (media bubble) ── */}
+              {/*  Forwarded label (media bubble)  */}
               {isForwarded && (
                 <div
                   className={cn(
@@ -1302,7 +1288,7 @@ export default function MessageBubble({ message }: { message: Message }) {
                 )}
             </div>
 
-            {/* ── Reactions (below media bubble) ── */}
+            {/*  Reactions (below media bubble)  */}
             {hasReactions && (
               <ReactionBar
                 reactions={reactions}
@@ -1380,7 +1366,7 @@ export default function MessageBubble({ message }: { message: Message }) {
             )}
 
             <div className="flex flex-col gap-0.5 pr-2">
-              {/* ── Forwarded label (text bubble) ── */}
+              {/*  Forwarded label (text bubble)  */}
               {isForwarded && !isDeleted && <ForwardedLabel isMine={isMine} />}
 
               {/* Reply preview */}
@@ -1452,7 +1438,7 @@ export default function MessageBubble({ message }: { message: Message }) {
             </div>
           </div>
 
-          {/* ── Reactions (below text bubble) ── */}
+          {/*  Reactions (below text bubble)  */}
           {hasReactions && (
             <ReactionBar
               reactions={reactions}

@@ -156,7 +156,7 @@ export default function MessageList() {
               "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
             backgroundSize: "20px 20px",
           }
-        : {}; 
+        : {};
 
   //  Renders
   if (msgLoading) {
@@ -229,9 +229,80 @@ export default function MessageList() {
                   compactMode ? "gap-0.5" : "gap-1.5",
                 )}
               >
-                {group.messages.map((msg) => (
-                  <MessageBubble key={msg._id} message={msg} />
-                ))}
+                {group.messages.map((msg, index) => {
+                  const isMyMessage = msg.senderId === myId;
+                  const isGroup = activeContact?.isGroupChat;
+
+                  const prevMsg = group.messages[index - 1];
+                  const nextMsg = group.messages[index + 1];
+
+                  const isFirstInChain =
+                    !prevMsg || prevMsg.senderId !== msg.senderId;
+                  const isLastInChain =
+                    !nextMsg || nextMsg.senderId !== msg.senderId;
+
+                  return (
+                    <div
+                      key={msg._id}
+                      className={cn(
+                        "flex items-start gap-2", // ← items-end → items-start
+                        isMyMessage ? "flex-row-reverse" : "flex-row",
+                      )}
+                    >
+                      {/* ─── Avatar — TOP এ, first message এ ─── */}
+                      {isGroup && !isMyMessage && (
+                        <div className="w-7 h-7 flex-shrink-0 mt-1">
+                          {isFirstInChain ? (
+                            <img
+                              src={
+                                msg.senderDetails?.profilePicture ||
+                                "/default-avatar.png"
+                              }
+                              alt={msg.senderDetails?.userName || "user"}
+                              className="w-7 h-7 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-7 h-7" />
+                          )}
+                        </div>
+                      )}
+
+                      {/* ─── Message + Name ─── */}
+                      <div
+                        className={cn(
+                          "flex flex-col max-w-[70%]",
+                          isMyMessage ? "items-end" : "items-start",
+                        )}
+                      >
+                        {/* Name — first message এ */}
+                        {isGroup && !isMyMessage && isFirstInChain && (
+                          <span className="text-xs font-medium text-blue-500 dark:text-blue-400 ml-1 mb-0.5">
+                            {msg.senderDetails?.userName}
+                          </span>
+                        )}
+
+                        <MessageBubble message={msg} />
+                      </div>
+
+                      {isGroup && isMyMessage && (
+                        <div className="w-7 h-7 flex-shrink-0 mt-1">
+                          {isFirstInChain ? (
+                            <img
+                              src={
+                                msg.senderDetails?.profilePicture ||
+                                "/default-avatar.png"
+                              }
+                              alt="me"
+                              className="w-7 h-7 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-7 h-7" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

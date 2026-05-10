@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useRef, useEffect, useState } from "react";
 import EmojiPicker, { Theme, EmojiClickData } from "emoji-picker-react";
@@ -32,6 +33,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { extractUrl } from "@/lib/linkDetector";
+import { FileIcon } from "../chat-window/MessageBubble";
+import Image from "next/image";
 
 const MAX_FILES = 5;
 
@@ -362,6 +365,31 @@ export default function InputBar() {
     e.target.value = "";
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const fileItems = items.filter((item) => item.kind === "file");
+    if (fileItems.length === 0) return;
+
+    e.preventDefault();
+
+    const files = fileItems
+      .map((item) => item.getAsFile())
+      .filter(Boolean) as File[];
+
+    if (files.length === 0) return;
+
+    // MAX_FILES check
+    const remaining = MAX_FILES - selectedMedias.length;
+    if (remaining <= 0) {
+      toast.error(`Maximum ${MAX_FILES} files allowed`);
+      return;
+    }
+
+    addFiles(files.slice(0, remaining)).then(({ ok, error }) => {
+      if (!ok && error) toast.error(error);
+    });
+  };
+
   const handleEmojiClick = (emojiObject: EmojiClickData) => {
     useChatStore.setState({ msgInput: localInput + emojiObject.emoji });
     inputRef.current?.focus();
@@ -467,7 +495,6 @@ export default function InputBar() {
           className="hidden"
         />
       ))}
-
       {/* Emoji picker */}
       {showEmojiPicker && (
         <div
@@ -485,42 +512,71 @@ export default function InputBar() {
         </div>
       )}
 
-      {/* Reply / Edit bar */}
-      {(replyTo || editingMsg) && (
-        <div
-          className={cn(
-            "flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl text-xs transition-colors duration-200",
-            editingMsg
-              ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900/50"
-              : "bg-sky-50 border-sky-200 dark:bg-sky-950/30 dark:border-sky-900/50",
-          )}
-        >
-          {editingMsg ? (
-            <Pencil className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          ) : (
-            <CornerUpRight className="h-3.5 w-3.5 text-sky-500 shrink-0" />
-          )}
-          <span
-            className={cn(
-              "font-semibold shrink-0",
-              editingMsg ? "text-amber-600" : "text-sky-600",
-            )}
-          >
-            {editingMsg ? "Editing" : "Replying to"}
-          </span>
-          <span className="text-slate-500 truncate flex-1 opacity-90">
-            {safeStr(editingMsg?.content ?? replyTo?.content)}
-          </span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={clearContext}
-            className="h-6 w-6 rounded-full"
-          >
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+      {replyTo &&
+        !editingMsg &&
+        (() => {
+          const atts = (replyTo as any).attachments ?? [];
+          const imgs = atts.filter((a: any) => a.type === "image");
+          const vids = atts.filter((a: any) => a.type === "video");
+          const files = atts.filter(
+            (a: any) => a.type === "file" || a.type === "audio",
+          );
+          const voices = atts.filter((a: any) => a.type === "VoiceMessage");
+          const hasAtts = atts.length > 0 || (replyTo as any).hasAttachments;
+          const msgType = (replyTo as any).messageType;
+
+          if (imgs.length > 0)
+            return (
+              <Image
+                src={imgs[0].url as string  ||"/default_image.png"}
+                alt=" reply image"
+                className="w-9 h-9 rounded-lg object-cover shrink-0 ring-1 ring-sky-200"
+                width={36}
+                height={36}
+              />
+            );
+
+          if (files.length > 0)
+            return (
+              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                <FileIcon mimeType={files[0].mimeType} className="h-4 w-4" />
+              </div>
+            );
+
+          //  Video
+          if (vids.length > 0)
+            return (
+              <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
+                <Film className="h-4 w-4 text-white/60" />
+              </div>
+            );
+
+          //  Voice
+          if (voices.length > 0)
+            return (
+              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                <Mic className="h-4 w-4 text-sky-500" />
+              </div>
+            );
+
+          //  Fallback — populated না কিন্তু hasAttachments true
+          if (hasAtts && atts.length === 0)
+            return (
+              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                {msgType === "media" && (
+                  <ImageIcon className="h-4 w-4 text-sky-500" />
+                )}
+                {msgType === "voice" && (
+                  <Mic className="h-4 w-4 text-sky-500" />
+                )}
+                {msgType === "file" && (
+                  <FileText className="h-4 w-4 text-sky-500" />
+                )}
+              </div>
+            );
+
+          return null;
+        })()}
 
       {/* Live Link Preview */}
       {debouncedUrl &&
@@ -580,7 +636,6 @@ export default function InputBar() {
             </Button>
           </div>
         )}
-
       {/* Media strip */}
       {(selectedMedias.length > 0 || uploadingMedias.length > 0) && (
         <div className="flex items-end gap-2 mb-3 overflow-x-auto pb-1 scrollbar-none">
@@ -607,7 +662,6 @@ export default function InputBar() {
             )}
         </div>
       )}
-
       {/* Input row */}
       <div className="flex items-end gap-2">
         {/* Attachment picker */}
@@ -701,6 +755,7 @@ export default function InputBar() {
                 value={localInput}
                 onChange={(e) => handleLocalChange(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder={
                   selectedMedias.length > 0 || uploadingMedias.length > 0
                     ? "Add a caption or write a message..."
@@ -750,7 +805,6 @@ export default function InputBar() {
           </Button>
         )}
       </div>
-
       {/* Keyboard hints */}
       <div className="hidden md:flex justify-center items-center gap-2 mt-3 text-[10px] font-medium text-slate-400 dark:text-slate-500 select-none">
         <span>

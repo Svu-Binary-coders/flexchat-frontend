@@ -1,7 +1,7 @@
-// ═══════════════════════════════════════════════════
+// 
 // chatStore.ts এ শুধু এই parts গুলো বদলাবে
 // বাকি সব same থাকবে
-// ═══════════════════════════════════════════════════
+// 
 
 import {
   encryptGroupMessage,
@@ -12,9 +12,9 @@ import {
   initGroupSenderKey,
 } from "@/helper/groupE2EHelper";
 
-// ─────────────────────────────────────────────────────
+// 
 // ১. openChat — group open হলে sender keys load করো
-// ─────────────────────────────────────────────────────
+// 
 openChat: (contact: Contact | null) => {
   // ... তোমার existing code ...
 
@@ -28,9 +28,9 @@ openChat: (contact: Contact | null) => {
   // ... বাকি existing code same ...
 },
 
-// ─────────────────────────────────────────────────────
+// 
 // ২. sendMessage — group হলে group encrypt use করো
-// ─────────────────────────────────────────────────────
+// 
 sendMessage: async () => {
   const { msgInput, activeContact, socket, editingMsg, replyTo } = get();
   const myId = useAuthStore.getState().myId;
@@ -70,10 +70,10 @@ sendMessage: async () => {
   }
 },
 
-// ─────────────────────────────────────────────────────
+// 
 // ৩. Socket — group message receive
 // initSocket এ এই event add করো
-// ─────────────────────────────────────────────────────
+// 
 
 // existing receive_private_message রাখো — 1-1 এর জন্য
 
@@ -144,9 +144,9 @@ socket.on("group:member_joined", async ({ chatId }: { chatId: string }) => {
 });
 
 
-// ─────────────────────────────────────────────────────
+// 
 // ৪. createAndOpenChat — group create হলে key init
-// ─────────────────────────────────────────────────────
+// 
 createAndOpenChat: async (selectedUser: NewChatPreview) => {
   // ... তোমার existing 1-1 create code same থাকবে ...
 },

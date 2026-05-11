@@ -893,9 +893,9 @@ const MessageImageGrid = ({
   );
 };
 
-// ════════════════════════════════════════════════════════════════════════════
+//
 //  MessageBubble (main export)
-// ════════════════════════════════════════════════════════════════════════════
+//
 
 export default function MessageBubble({ message }: { message: Message }) {
   const { myId } = useAuthStore();
@@ -983,9 +983,9 @@ export default function MessageBubble({ message }: { message: Message }) {
       </button>
     ) : null;
 
-  // ════════════════════════════════════════════════════════════════════════════
+  //
   // Media / attachment bubble
-  // ════════════════════════════════════════════════════════════════════════════
+  //
   if ((hasMedia || hasVoice || hasFiles) && !isDeleted) {
     const videoAtts = mediaAtts.filter((a) => a.type === "video");
 
@@ -1303,9 +1303,9 @@ export default function MessageBubble({ message }: { message: Message }) {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
+  //
   // Text bubble
-  // ════════════════════════════════════════════════════════════════════════════
+  //
   return (
     <>
       <style>{bubbleAnimStyles}</style>

@@ -122,9 +122,9 @@ function _validatePhrase(phrase: string): {
   };
 }
 
-// ══════════════════════════════════════════════════════════════════════════
+//
 // Public Types
-// ══════════════════════════════════════════════════════════════════════════
+//
 
 export interface EncryptedBackupKey {
   ctB64: string; // rawBackupBytes encrypted with MasterKey
@@ -137,15 +137,15 @@ export interface EncryptedChatKey {
   ivB64: string;
 }
 
-// ══════════════════════════════════════════════════════════════════════════
+//
 // BackupManager
-// ══════════════════════════════════════════════════════════════════════════
+//
 
 export class BackupManager {
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // createBackupKey
   // Registration এ একবার call করো
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async createBackupKey(masterKey: CryptoKey): Promise<{
     backupKey: CryptoKey;
@@ -174,10 +174,10 @@ export class BackupManager {
     return { backupKey, recoveryPhrase, encBackupKey };
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // restoreBackupKey
   // Normal Login এ — PIN আছে, server থেকে encBackupKey এনে decrypt করো
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async restoreBackupKey(
     masterKey: CryptoKey,
@@ -196,10 +196,10 @@ export class BackupManager {
     ]);
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // recoverFromPhrase
   // PIN ভুলে গেলে — Phrase দিয়ে BackupKey directly recover করো
-  // ════════════════════════════════════════════════════════════════════════
+  //
   //
   // আগের version এ rand(32) ব্যবহার করছিল — সেটা ভুল ছিল।
   // এখন phrase → PBKDF2 → same rawBackupBytes → same BackupKey।
@@ -239,10 +239,10 @@ export class BackupManager {
     return { backupKey, newEncBackupKey };
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // backupChatKeyRaw
   // নতুন chat শুরু হলে — ChatKey এর raw bits backup করো
-  // ════════════════════════════════════════════════════════════════════════
+  //
   //
   // HKDF key directly export করা যায় না।
   // SessionManager.deriveChatKeyHKDF কে modify করো যাতে raw bits ও return করে।
@@ -257,10 +257,10 @@ export class BackupManager {
     return { chatId, ctB64, ivB64 };
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // restoreAllChatKeys
   // Login এ — server থেকে সব encChatKey নামিয়ে restore করো
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async restoreAllChatKeys(
     backupKey: CryptoKey,
@@ -279,10 +279,10 @@ export class BackupManager {
     return chatKeyMap;
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // reEncryptBackupKey
   // PIN change হলে — BackupKey same, শুধু নতুন MasterKey দিয়ে re-wrap
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async reEncryptBackupKey(
     backupKey: CryptoKey,
@@ -292,10 +292,10 @@ export class BackupManager {
     return aesEncrypt(newMasterKey, rawBytes);
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // verifyPhrase
   // Registration এ user phrase confirm করলে — wordlist check
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static verifyPhrase(phrase: string): {
     valid: boolean;
@@ -304,10 +304,10 @@ export class BackupManager {
     return _validatePhrase(phrase);
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // phraseToBackupKey
   // Recovery page এ standalone — শুধু ChatKey restore করতে চাইলে
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async phraseToBackupKey(recoveryPhrase: string): Promise<CryptoKey> {
     const { valid, invalidWords } = _validatePhrase(recoveryPhrase);

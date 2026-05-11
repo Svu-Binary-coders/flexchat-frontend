@@ -37,9 +37,9 @@ async function sha256(data: Uint8Array): Promise<ArrayBuffer> {
 }
 
 export class KeyManager {
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 1.  PIN  →  Master Key   (multi-layer, non-extractable)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async deriveMasterKey(
     pin: string,
@@ -99,9 +99,9 @@ export class KeyManager {
     return b64e(rand(32));
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 2.  Identity Key Pair  (ECDH P-384)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async generateIdentityKeyPair(): Promise<CryptoKeyPair> {
     return subtle().generateKey({ name: "ECDH", namedCurve: "P-384" }, true, [
@@ -110,9 +110,9 @@ export class KeyManager {
     ]);
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 3.  Signing Key  (HMAC-SHA256)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async generateSigningKey(): Promise<CryptoKey> {
     return subtle().generateKey({ name: "HMAC", hash: "SHA-256" }, true, [
@@ -121,9 +121,9 @@ export class KeyManager {
     ]);
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 4.  Wrap / Unwrap private keys with Master Key (AES-GCM)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async wrapKey(
     masterKey: CryptoKey,
@@ -167,9 +167,9 @@ export class KeyManager {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 5.  Export helpers (for public keys and sharing)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async exportPublicKey(key: CryptoKey): Promise<string> {
     return b64e(await subtle().exportKey("spki", key));
@@ -186,9 +186,9 @@ export class KeyManager {
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════
+  //
   // 6.  Identity Persistence  (IndexedDB helpers)
-  // ════════════════════════════════════════════════════════════════════════
+  //
 
   static async createAndStoreIdentity(
     userId: string,
@@ -257,7 +257,6 @@ export class KeyManager {
     return { identity, privateKey, signingKey };
   }
 
-  
   //  Minimal IndexedDB wrapper
   private static _db: IDBDatabase | null = null;
 

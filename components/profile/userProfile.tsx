@@ -265,7 +265,6 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                 </p>
               </div>
             ) : mediaTab === "raw" ? (
-              // Document List View (ফাইলগুলো আগের মতোই ব্রাউজারে ওপেন হবে)
               <div className="flex flex-col gap-2">
                 {activeMediaData.map((doc, index) => (
                   <div

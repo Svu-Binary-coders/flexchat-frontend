@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 const SENDER_KEY_PREFIX = "grp_sender:";
 
-// ─────────────────────────────────────────────────────
+//
 // Keys
-// ─────────────────────────────────────────────────────
+//
 async function ensureKeys() {
   let { privateKey, signingKey } = useSessionStore.getState();
 
@@ -35,9 +35,9 @@ async function ensureKeys() {
   return { privateKey, signingKey };
 }
 
-// ─────────────────────────────────────────────────────
+//
 // Uint8Array helpers
-// ─────────────────────────────────────────────────────
+//
 const safeUint8Array = (length: number): Uint8Array<ArrayBuffer> => {
   const buf = new ArrayBuffer(length);
   const arr = new Uint8Array(buf);
@@ -51,9 +51,9 @@ const toSafeUint8Array = (data: Uint8Array): Uint8Array<ArrayBuffer> => {
   return new Uint8Array(buf);
 };
 
-// ─────────────────────────────────────────────────────
+//
 // IndexDB helpers
-// ─────────────────────────────────────────────────────
+//
 const dbSave = async (key: string, value: unknown): Promise<void> => {
   await KeyManager._idbSet(key, value);
 };
@@ -103,9 +103,9 @@ const getSenderChainKey = async (
   return { chainKey: toSafeUint8Array(new Uint8Array(data.chainKey)) };
 };
 
-// ─────────────────────────────────────────────────────
+//
 // Crypto helpers
-// ─────────────────────────────────────────────────────
+//
 const deriveMessageKey = async (
   chainKey: Uint8Array<ArrayBuffer>,
 ): Promise<CryptoKey> => {
@@ -201,9 +201,9 @@ const decryptChainKeyFromSender = async (
   return toSafeUint8Array(new Uint8Array(decrypted));
 };
 
-// ─────────────────────────────────────────────────────
+//
 // Public API
-// ─────────────────────────────────────────────────────
+//
 
 export const initGroupSenderKey = async (
   chatId: string,

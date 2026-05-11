@@ -9,16 +9,17 @@ import ProfilePanel from "@/components/profile/userProfile";
 import { useChatStore } from "@/stores/chatStore";
 import { useChatSettings } from "@/stores/chatSettingsStore";
 import { toast } from "sonner";
+import GroupDetailsSidebar from "../groupDetalisSidebar";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function ChatWindow() {
   const { activeContact } = useChatStore();
   const [showProfile, setShowProfile] = useState(false);
-
-  const chatId = activeContact?.customChatId ?? activeContact?._id ?? "";
+  const myId = useAuthStore((state) => state.myId);
+  const chatId = activeContact?.customChatId ?? activeContact?._id ?? ""; 
   const chatSettings = useChatSettings(chatId);
-  const isProtected = !!chatSettings?.isScreenShotBlur; // বা আপনার লজিক অনুযায়ী
+  const isProtected = !!chatSettings?.isScreenShotBlur;
 
-  // Keyboard screenshot attempts (শুধু ওয়ার্নিং দেবে, স্ক্রিন ব্লার করবে না)
   useEffect(() => {
     if (!isProtected) return;
 
@@ -84,7 +85,7 @@ export default function ChatWindow() {
           className="absolute inset-0 pointer-events-none z-[45] select-none"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='220' height='150' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='rgba(148, 163, 184, 0.08)' font-size='22' font-family='sans-serif' font-weight='bold' transform='rotate(-30, 110, 75)'%3E${encodeURIComponent(
-              activeContact.name
+              activeContact.name,
             )}%3C/text%3E%3C/svg%3E")`,
             backgroundRepeat: "repeat",
           }}
@@ -110,11 +111,22 @@ export default function ChatWindow() {
         />
       )}
 
-      <ProfilePanel
-        userId={activeContact._id}
-        open={showProfile}
-        onClose={() => setShowProfile(false)}
-      />
+      {showProfile &&
+        (activeContact.isGroupChat ? (
+          <GroupDetailsSidebar
+            chatId={activeContact._id}
+            customChatId={activeContact.customChatId || activeContact._id}
+            myId={myId}
+            open={showProfile}
+            onClose={() => setShowProfile(false)}
+          />
+        ) : (
+          <ProfilePanel
+            userId={activeContact._id}
+            open={showProfile}
+            onClose={() => setShowProfile(false)}
+          />
+        ))}
     </div>
   );
 }

@@ -249,7 +249,7 @@ export default function MessageList() {
                         isMyMessage ? "flex-row-reverse" : "flex-row",
                       )}
                     >
-                      {/* ─── Avatar — TOP এ, first message এ ─── */}
+                      {/*  Avatar — TOP এ, first message এ  */}
                       {isGroup && !isMyMessage && (
                         <div className="w-7 h-7 flex-shrink-0 mt-1">
                           {isFirstInChain ? (
@@ -267,7 +267,7 @@ export default function MessageList() {
                         </div>
                       )}
 
-                      {/* ─── Message + Name ─── */}
+                      {/*  Message + Name  */}
                       <div
                         className={cn(
                           "flex flex-col max-w-[70%]",

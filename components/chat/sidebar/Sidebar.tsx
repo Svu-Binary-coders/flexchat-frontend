@@ -162,7 +162,7 @@ export default function Sidebar() {
             <AvatarImage src={authData?.profilePicture} alt="Profile" />
             <AvatarFallback className="bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xs font-bold">
               {/* show first name + last name first letters */}
-              {getNameFallback(authData?.userName)}
+              {getNameFallback(authData?.name)}
             </AvatarFallback>
           </Avatar>
           {/* Pulse dot */}
@@ -179,10 +179,10 @@ export default function Sidebar() {
         {/* Name + ID */}
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 truncate leading-tight">
-            {authData?.userName ?? "You"}
+            {authData?.name ?? "You"}
           </p>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-mono mt-0.5">
-            {authData?.customId}
+            {authData?.user_id}
           </p>
         </div>
 

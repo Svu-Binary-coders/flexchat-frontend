@@ -17,6 +17,7 @@ export const publicPaths = [
   "/reset-password",
 ];
 
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

@@ -34,7 +34,6 @@ import { MediaViewer } from "@/components/chat/media/MediaViewer";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import Image from "next/image";
-import { Contact } from "@/types/chat";
 import { useChatStore } from "@/stores/chatStore";
 
 //  Types

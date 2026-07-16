@@ -190,7 +190,7 @@ function EmailUpdateModal({ currentEmail }: { currentEmail: string }) {
     mutationFn: () => {
       if (
         email.trim().toLowerCase() ===
-        MyDetails?.userEmail?.trim().toLowerCase()
+        MyDetails?.email?.trim().toLowerCase()
       ) {
         return Promise.reject(
           new Error("New email cannot be the same as current email"),
@@ -377,13 +377,13 @@ export default function Accounts() {
         <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
           <div>
             <p className="text-sm font-medium text-slate-700">
-              {MyDetails?.userEmail}
+              {MyDetails?.email || "Not set"}
             </p>
             <p className="text-[10px] text-slate-400 mt-0.5">
               Your login email
             </p>
           </div>
-          <EmailUpdateModal currentEmail={MyDetails?.userEmail || ""} />
+          <EmailUpdateModal currentEmail={MyDetails?.email || ""} />
         </div>
       </div>
 

@@ -370,7 +370,7 @@ function AvatarUploader({
 export default function Profile() {
   const { myDetails, setMyDetails } = useAuthStore();
   const queryClient = useQueryClient();
-  const initials = myDetails?.userName?.slice(0, 2).toUpperCase() || "UN";
+  const initials = myDetails?.name?.slice(0, 2).toUpperCase() || "UN";
 
   const router = useRouter();
 
@@ -411,14 +411,14 @@ export default function Profile() {
     onSuccess: (data) => {
       // update state with new avatar URL
       if (myDetails) {
-        setMyDetails({ ...myDetails, profilePicture: data.profilePicture });
+        setMyDetails({ ...myDetails, profile_image: data.profilePicture });
       }
       // update the cached auth data so that the new avatar is reflected across the app without refetching
       queryClient.setQueryData(["auth"], (old: any) => {
         if (!old) return old;
         return {
           ...old,
-          profilePicture: data.profilePicture,
+          profile_image: data.profilePicture,
         };
       });
 
@@ -435,14 +435,14 @@ export default function Profile() {
     onSuccess: (data) => {
       if (myDetails) {
         // avtar delete -> profile pic undefined
-        setMyDetails({ ...myDetails, profilePicture: undefined });
+        setMyDetails({ ...myDetails, profile_image: undefined });
       }
       // update the cached auth data to remove the avatar URL
       queryClient.setQueryData(["auth"], (old: IMyDetails) => {
         if (!old) return old;
         return {
           ...old,
-          profilePicture: undefined,
+          profile_image: undefined,
         };
       });
       toast.success("Avatar removed");
@@ -489,7 +489,7 @@ export default function Profile() {
         <div className="flex flex-col md:flex-row items-center gap-6 relative z-10">
           <div>
             <AvatarUploader
-              src={myDetails?.profilePicture}
+              src={myDetails?.profile_image}
               initials={initials}
               isUploading={uploadMutation.isPending}
               isDeleting={deleteMutation.isPending}
@@ -500,8 +500,8 @@ export default function Profile() {
 
           <div className="text-center md:text-left space-y-1.5">
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-              {myDetails?.userName
-                ? myDetails.userName
+              {myDetails?.name
+                ? myDetails.name
                     .split(" ")
                     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
                     .join(" ")
@@ -510,11 +510,11 @@ export default function Profile() {
             <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 text-sm text-slate-500">
               <span className="flex items-center gap-1.5">
                 <Mail className="h-3.5 w-3.5 text-sky-500" />
-                {myDetails?.userEmail}
+                {myDetails?.email || "Not set"}
               </span>
               <span className="hidden md:block text-slate-300">·</span>
               <span className="text-[10px] font-bold bg-white/80 border border-sky-100 px-2.5 py-1 rounded-full font-mono tracking-tight">
-                {myDetails?.customId}
+                {myDetails?.user_id || "N/A"}
               </span>
             </div>
 
@@ -526,8 +526,8 @@ export default function Profile() {
               <span className="flex items-center gap-1 text-[10px] font-bold text-slate-500 bg-white/80 border border-slate-100 px-2.5 py-1 rounded-full">
                 <Calendar className="h-3 w-3" />
                 <span className="mx-1">Joined </span>
-                {myDetails?.createdAt
-                  ? new Date(myDetails.createdAt).toLocaleDateString("en-US", {
+                {myDetails?.created_at
+                  ? new Date(myDetails.created_at).toLocaleDateString("en-US", {
                       month: "short",
                       year: "numeric",
                     })
@@ -568,7 +568,7 @@ export default function Profile() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <EditableField
             label="Username"
-            value={myDetails?.userName || ""}
+            value={myDetails?.name || ""}
             onSave={(val) => updateMutation.mutate({ userName: val })}
           />
           <div className="space-y-1.5">
@@ -577,7 +577,7 @@ export default function Profile() {
             </label>
             <div className="flex h-9 items-center px-3 rounded-lg border border-slate-200 bg-slate-50 gap-2">
               <span className="text-sm text-slate-400 truncate flex-1">
-                {myDetails?.userEmail}
+                {myDetails?.email || "Not set"}
               </span>
               <span className="text-[9px] font-bold text-slate-300 uppercase">
                 Locked

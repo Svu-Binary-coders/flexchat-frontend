@@ -7,10 +7,10 @@ export enum MessageStatus {
 }
 
 export interface Contact {
-  _id: string;
+  id: string;
   name: string;
   email?: string;
-  avatar?: string;
+  profile_image?: string;
   lastMessage?: { content: string; createdAt: string };
   unreadCount?: number;
   isOnline?: boolean;

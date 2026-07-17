@@ -89,7 +89,7 @@ export default function Sidebar() {
       await initGroupSenderKey(chat.customChatId, myId, friendsPublicKeys);
 
       const newChatContact: Contact = {
-        _id: chat._id,
+        id: chat.id,
         name: chat.groupName,
         customChatId: chat.customChatId,
         isGroupChat: chat.isGroupChat,
@@ -97,9 +97,9 @@ export default function Sidebar() {
         unreadCount: 0,
         participants: chat.participants.map(
           (p: any): Contact => ({
-            _id: p._id,
+            id: p.id,
             name: p.userName,
-            avatar: p.profilePicture,
+            profile_image: p.profilePicture,
           }),
         ),
       };
@@ -159,7 +159,7 @@ export default function Sidebar() {
         {/* Avatar with online ring */}
         <div className="relative shrink-0">
           <Avatar className="w-9 h-9 ring-2 ring-emerald-400/40 ring-offset-1 ring-offset-white dark:ring-offset-[#0d1117]">
-            <AvatarImage src={authData?.profilePicture} alt="Profile" />
+            <AvatarImage src={authData?.profile_image} alt="Profile" />
             <AvatarFallback className="bg-gradient-to-br from-sky-400 to-indigo-500 text-white text-xs font-bold">
               {/* show first name + last name first letters */}
               {getNameFallback(authData?.name)}
@@ -359,9 +359,9 @@ export default function Sidebar() {
           <div className="pb-4">
             {filtered.map((contact: Contact) => (
               <ContactItem
-                key={contact._id}
+                key={contact.id}
                 contact={contact}
-                isActive={activeContact?._id === contact._id}
+                isActive={activeContact?.id === contact.id}
                 onClick={() => openChat(contact)}
               />
             ))}

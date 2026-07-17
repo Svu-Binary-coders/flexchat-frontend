@@ -29,7 +29,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// 🔴 আমাদের UI এর জন্য ইন্টারফেস
 interface DeviceSession {
   sessionId: string;
   os: string;
@@ -58,7 +57,7 @@ export default function DeviceList() {
   } = useQuery({
     queryKey: ["active-devices"],
     queryFn: async () => {
-      const response = await api.get("/auth/devices");
+      const response = await api.get("/auth/sessions");
 
       const rawSessions = response.data.devices;
 
@@ -80,7 +79,7 @@ export default function DeviceList() {
 
   const { mutate: logoutDevice, isPending: isLoggingOutSingle } = useMutation({
     mutationFn: async (sessionId: string) => {
-      await api.delete(`/auth/devices/${sessionId}`);
+      await api.delete(`/delete-session/${sessionId}`);
     },
     onSuccess: () => {
       toast.success("Device logged out successfully!");

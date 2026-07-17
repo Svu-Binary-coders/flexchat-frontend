@@ -63,7 +63,7 @@ export default function ContactItem({
           {/* Avatar Section */}
           <div className="relative shrink-0">
             <Avatar className="h-12 w-12 sm:h-11 sm:w-11 border border-slate-200/50 dark:border-slate-700 shadow-sm transition-transform duration-200 group-hover:scale-105">
-              <AvatarImage src={contact.avatar} alt={contact.name} />
+              <AvatarImage src={contact.profile_image} alt={contact.name} />
               <AvatarFallback className="bg-gradient-to-br from-sky-400 to-blue-600 text-white text-sm font-bold">
                 {getNameFallback(contact.name)}
               </AvatarFallback>
@@ -160,7 +160,7 @@ export default function ContactItem({
                 align="end"
                 className="w-48 py-2 px-1 dark:bg-slate-900 dark:border-slate-800 z-50"
               >
-                {/* 🔴 Pinned Toggle Menu Item */}
+                {/* Pinned Toggle Menu Item */}
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
@@ -179,7 +179,7 @@ export default function ContactItem({
                   <span>{contact.isPinned ? "Unpin Chat" : "Pin Chat"}</span>
                 </DropdownMenuItem>
 
-                {/* 🔴 Favorite Toggle Menu Item */}
+                {/*  Favorite Toggle Menu Item */}
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
@@ -218,7 +218,7 @@ export default function ContactItem({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    onBlock?.(contact._id);
+                    onBlock?.(contact.id);
                   }}
                   className="cursor-pointer gap-2 text-orange-600 focus:bg-orange-100 focus:text-orange-700 dark:text-orange-500 dark:focus:bg-orange-950/50 dark:focus:text-orange-400 transition-colors"
                 >
@@ -229,7 +229,7 @@ export default function ContactItem({
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete?.(contact.customChatId as string);
+                    onDelete?.(contact.id);
                   }}
                   className="cursor-pointer gap-2 text-red-600 focus:bg-red-100 focus:text-red-700 dark:text-red-500 dark:focus:bg-red-950/50 dark:focus:text-red-400 transition-colors"
                 >
@@ -244,7 +244,7 @@ export default function ContactItem({
 
       {/* Context Menu Content (Long Press / Right Click) */}
       <ContextMenuContent className="w-48 dark:bg-slate-900 dark:border-slate-800 z-50 p-2">
-        {/* 🔴 Pinned Toggle Context Item */}
+        {/* Pinned Toggle Context Item */}
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
@@ -289,7 +289,7 @@ export default function ContactItem({
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            onBlock?.(contact._id);
+            onBlock?.(contact.id);
           }}
           className="cursor-pointer gap-2 text-orange-600 focus:bg-orange-100 focus:text-orange-700 dark:text-orange-500 dark:focus:bg-orange-950/50 dark:focus:text-orange-400 transition-colors"
         >
@@ -300,7 +300,7 @@ export default function ContactItem({
         <ContextMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            onDelete?.(contact.customChatId as string);
+            onDelete?.(contact.id);
           }}
           className="cursor-pointer gap-2 text-red-600 focus:bg-red-100 focus:text-red-700 dark:text-red-500 dark:focus:bg-red-950/50 dark:focus:text-red-400 transition-colors"
         >

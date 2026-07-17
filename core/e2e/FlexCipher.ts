@@ -1,4 +1,3 @@
-// src/core/e2e/FlexCipher.ts
 //
 // Envelope wire format (8 segments, colon-separated):
 //   version : flags : conditions : chatId : timestamp : iv : ciphertext : signature
@@ -120,7 +119,7 @@ async function duressKeyFromPin(pin: string): Promise<CryptoKey> {
 export interface PackOptions {
   payload: FCPPayload;
   chatKey: CryptoKey;
-  signingKey: CryptoKey; // not actually used for signing in this implementation, but kept here for potential future use or extensions
+  signingKey: CryptoKey;
   chatId: string;
   version?: FCPVersion;
   flags?: number;
@@ -234,7 +233,7 @@ export class FlexCipher {
     // 2. Signature verification (tamper detection and key mismatch)
     const valid = await hmacVerify(chatKey, timestamp, ivB64, ctB64, signature);
     if (!valid)
-      throw new Error("⚠️ Signature invalid — message tampered or wrong key");
+      throw new Error(" Signature invalid — message tampered or wrong key");
 
     // 3. Message key
     const msgKey = await SessionManager.deriveMessageKey(chatKey, timestamp);
@@ -299,7 +298,7 @@ export class FlexCipher {
         const ok = await FlexCipher._geoCheck(+lat, +lng, +radius);
         if (!ok)
           throw new Error(
-            "📍 GEO lock: you are not within the allowed location",
+            " GEO lock: you are not within the allowed location",
           );
       }
     }

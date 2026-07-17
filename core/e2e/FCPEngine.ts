@@ -1,4 +1,4 @@
-// High-level wrapper around FlexCipher — use this in your UI components.
+// High-level wrapper around FlexCipher.
 // Translates human-readable options (isForwarded, isBlur, isViewOnce) into
 // bitwise FCP flags and calls pack/unpack on your behalf.
 
@@ -39,25 +39,6 @@ export interface DecryptMessageResult {
 }
 
 export class FCPEngine {
-  /**
-   * Encrypt a message and return the wire envelope string.
-   *
-   * @example
-   * const envelope = await FCPEngine.encryptMessage({
-   *   text:       "Secret message!",
-   *   type:       "text",
-   *   chatId:     currentChatId,
-   *   chatKey:    myChatKey,
-   *   signingKey: mySigKey,
-   *   options: {
-   *     isForwarded: false,
-   *     isBlur:      true,
-   *     isViewOnce:  false,
-   *     conditions:  "NONE",
-   *   },
-   * });
-   * socket.emit("chat_message", { content: envelope });
-   */
   static async encryptMessage(params: EncryptMessageParams): Promise<string> {
     const { text, type, chatId, chatKey, signingKey, options = {} } = params;
 

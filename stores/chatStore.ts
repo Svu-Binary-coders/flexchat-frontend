@@ -20,13 +20,9 @@ import {
   isGroupEncrypted,
   loadGroupSenderKeys,
   rotateGroupSenderKey,
-  initGroupSenderKey,
   ensureGroupSenderKey,
 } from "@/helper/groupE2EHelper";
 
-// ==========================================
-// HELPERS
-// ==========================================
 const isEncrypted = (text: unknown): boolean =>
   typeof text === "string" &&
   (text.startsWith("v1:") || text.startsWith("v4:"));
@@ -41,7 +37,7 @@ const safeDecrypt = async (
     const decrypted = await secureDecryptMessage(content, chatId, publicKey);
     return typeof decrypted === "string" ? decrypted : decrypted.text;
   } catch {
-    return "🔒 [Encrypted Message]";
+    return " [Encrypted Message]";
   }
 };
 
@@ -158,14 +154,11 @@ const filterAllPagesCache = (
   );
 };
 
-// ==========================================
-// TYPES
-// ==========================================
 interface NewChatPreview {
-  _id: string;
+  user_id: string;
   name: string;
-  avatar?: string;
-  customId?: string;
+  profile_image?: string;
+  id: string;
 }
 
 type ActiveView =
@@ -306,7 +299,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       messages: [...s.messages, tempMsg],
       contacts: s.contacts
         .map((c) =>
-          c._id === activeContact?._id
+          c.id === activeContact?.id
             ? {
                 ...c,
                 lastMessage: {
@@ -349,7 +342,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     set((s) => ({
       contacts: s.contacts
         .map((c) =>
-          c._id === activeContact?._id
+          c.id === activeContact?.id
             ? {
                 ...c,
                 lastMessage: {
@@ -405,7 +398,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const { activeContact, contacts } = get();
 
       const targetContact = contacts.find(
-        (c) => c.customChatId === data.chatId || c._id === data.chatId,
+        (c) => c.customChatId === data.chatId || c.id === data.chatId,
       );
 
       const isGroup = !!data.isGroupChat || targetContact?.isGroupChat;
@@ -476,7 +469,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         return;
       }
 
-      const sender = contacts.find((c) => c._id === data.senderId);
+      const sender = contacts.find((c) => c.id === data.senderId);
 
       if (sender?.publicKey && sender?.customChatId) {
         data.content = await safeDecrypt(
@@ -495,7 +488,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         data.content = "🔒 [Encrypted Message]";
       }
 
-      if (data.senderId === activeContact?._id) {
+      if (data.senderId === activeContact?.id) {
         const newMsg = { ...data, status: MessageStatus.READ };
         set((s) => {
           const exists = s.messages.some((m) => m._id === data._id);
@@ -503,7 +496,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           return {
             messages: [...s.messages, newMsg],
             contacts: s.contacts.map((c) =>
-              c._id === data.senderId
+              c.id === data.senderId
                 ? {
                     ...c,
                     unreadCount: 0,
@@ -526,16 +519,15 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           senderId: data.senderId,
         });
       } else {
-        // ✅ অন্য 1-1 chat এ আছি — sidebar update
         set((s) => ({
           contacts: s.contacts
             .map((c) =>
-              c._id === data.senderId
+              c.id === data.senderId
                 ? {
                     ...c,
                     unreadCount: (c.unreadCount || 0) + 1,
                     lastMessage: {
-                      content: data.content, // ✅ decrypted
+                      content: data.content,
                       createdAt: data.createdAt || new Date().toISOString(),
                     },
                   }
@@ -791,7 +783,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     );
     socket.on("last_message_update", async ({ chatId, lastMessage }: any) => {
       const contact = get().contacts.find(
-        (c) => c.customChatId === chatId || c._id === chatId,
+        (c) => c.customChatId === chatId || c.id === chatId,
       );
 
       let content = lastMessage?.content ?? "";
@@ -824,7 +816,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
       set((s) => ({
         contacts: s.contacts.map((c) =>
-          c.customChatId === chatId || c._id === chatId
+          c.customChatId === chatId || c.id === chatId
             ? { ...c, lastMessage: { ...lastMessage, content } }
             : c,
         ),
@@ -834,10 +826,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     socket.on("user_online", ({ userId }: { userId: string }) => {
       set((s) => ({
         contacts: s.contacts.map((c) =>
-          c._id === userId ? { ...c, isOnline: true } : c,
+          c.id === userId ? { ...c, isOnline: true } : c,
         ),
         activeContact:
-          s.activeContact?._id === userId
+          s.activeContact?.id === userId
             ? { ...s.activeContact, isOnline: true }
             : s.activeContact,
       }));
@@ -846,10 +838,10 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     socket.on("user_offline", ({ userId }: { userId: string }) => {
       set((s) => ({
         contacts: s.contacts.map((c) =>
-          c._id === userId ? { ...c, isOnline: false } : c,
+          c.id === userId ? { ...c, isOnline: false } : c,
         ),
         activeContact:
-          s.activeContact?._id === userId
+          s.activeContact?.id === userId
             ? { ...s.activeContact, isOnline: false }
             : s.activeContact,
       }));
@@ -857,12 +849,12 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
     socket.on("show_typing", (data: any) => {
       const { activeContact } = get();
-      if (data.senderId === activeContact?._id) set({ isTyping: true });
+      if (data.senderId === activeContact?.id) set({ isTyping: true });
     });
 
     socket.on("hide_typing", (data: any) => {
       const { activeContact } = get();
-      if (data.senderId === activeContact?._id) set({ isTyping: false });
+      if (data.senderId === activeContact?.id) set({ isTyping: false });
     });
 
     return () => socket.disconnect();
@@ -876,7 +868,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (_typingTimeout) clearTimeout(_typingTimeout);
     set({ isTyping: false });
 
-    if (activeContact?.customChatId) {
+    if (activeContact?.id) {
       socket?.emit("leave_chat", activeContact.customChatId);
     }
 
@@ -890,7 +882,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       return;
     }
 
-    if (activeContact?._id === contact._id) return;
+    if (activeContact?.id === contact.id) return;
 
     set({
       activeContact: contact,
@@ -900,7 +892,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       editingMsg: null,
       replyTo: null,
       contacts: get().contacts.map((c) =>
-        c._id === contact._id ? { ...c, unreadCount: 0 } : c,
+        c.id === contact.id ? { ...c, unreadCount: 0 } : c,
       ),
     });
 
@@ -918,7 +910,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         members.map((p: any) => [p._id?.toString(), p.publicKey]),
       );
 
-      // ✅ অন্যদের keys load করো
       loadGroupSenderKeys(contact.customChatId, senderPublicKeys).catch((err) =>
         console.error("Failed to load group sender keys:", err),
       );
@@ -941,7 +932,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (!contact.isGroupChat) {
       socket?.emit("mark_all_read", {
         chatRoomId: contact.customChatId,
-        senderId: contact._id,
+        senderId: contact.id,
       });
     }
   },
@@ -961,7 +952,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (!msgInput.trim() || !activeContact || !myId) return;
 
     const content = msgInput.trim();
-    const chatId = activeContact.customChatId;
+    const chatId = activeContact.id;
 
     if (!chatId) return;
 
@@ -1050,12 +1041,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const disappearingDuration =
         getChatSettings(chatId).disappearingTimer ?? undefined;
 
-      // ✅ same send_message event — backend isGroupChat check করবে
       socket?.emit(
         "send_message",
         {
           chatRoomId: chatId,
-          receiverId: activeContact.isGroupChat ? null : activeContact._id,
+          receiverId: activeContact.isGroupChat ? null : activeContact.id,
           content: encryptedContent,
           replyToMessageId: replyTo?._id,
           userId: myId,
@@ -1074,7 +1064,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
               messages: s.messages.map((m) => (m._id === tempId ? sentMsg : m)),
               contacts: s.contacts
                 .map((c) =>
-                  c._id === activeContact._id || c.customChatId === chatId
+                  c.id === activeContact.id || c.customChatId === chatId
                     ? {
                         ...c,
                         lastMessage: {
@@ -1184,7 +1174,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             messageId: msg._id,
             chatRoomId: chatId,
             deleteForEveryone: true,
-            senderId: activeContact?._id,
+            senderId: activeContact?.id,
           },
           (res: any) => {
             if (res?.success) {
@@ -1220,7 +1210,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const myId = useAuthStore.getState().myId;
     if (!forwardMsg || !myId) return;
 
-    const targetContact = contacts.find((c) => c._id === contactId);
+    const targetContact = contacts.find((c) => c.id === contactId);
     const chatId = targetContact?.customChatId;
     const content = forwardMsg.content;
 
@@ -1380,13 +1370,14 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       try {
         const res = await api(`/chats/search?q=${val.trim()}`);
         const data = res.data;
+        console.log("Search result:", data);
         if (data.success && data.users.length > 0) {
           set({
             newChatPreview: data.users.map((user: any) => ({
-              _id: user._id,
-              name: user.userName,
-              avatar: user.profilePicture,
-              customId: user.customId,
+              id: user.id,
+              name: user.name,
+              profile_image: user.profileImage,
+              user_id: user.userId,
             })),
           });
         } else {
@@ -1408,32 +1399,32 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     set({ newChatLoading: true });
     try {
       const { data } = await api.post(`/chats/create`, {
-        receiverId: selectedUser._id,
+        receiverId: selectedUser.id,
         senderId: myId,
       });
       if (data.success) {
         const nc: Contact = {
-          _id: selectedUser._id,
+          id: selectedUser.id,
           name: selectedUser.name,
           email: "",
-          avatar: selectedUser.avatar,
+          profile_image: selectedUser.profile_image,
           customChatId: data.chat.chatRoomId,
           unreadCount: 0,
           isOnline: false,
           publicKey: data.publicKey,
         };
         set((s) => ({
-          contacts: s.contacts.find((c) => c._id === nc._id)
+          contacts: s.contacts.find((c) => c.id === nc.id)
             ? s.contacts
             : [nc, ...s.contacts],
         }));
         socket?.emit(
           "check_status",
-          nc._id,
+          nc.id,
           ({ online }: { online: boolean }) => {
             set((s) => ({
               contacts: s.contacts.map((c) =>
-                c._id === nc._id ? { ...c, isOnline: online } : c,
+                c.id === nc.id ? { ...c, isOnline: online } : c,
               ),
             }));
           },

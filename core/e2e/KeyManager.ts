@@ -1,11 +1,10 @@
-// src/core/e2e/KeyManager.ts
 //
 // Key Derivation Hierarchy
 //
 // PIN (user input)
-//  └ PBKDF2 (310k iter, random salt) ► MasterKey  [never extractable]
-//       └ AES-GCM encrypt ► EncryptedPrivateKey  (stored in IndexedDB)
-//       └ AES-GCM encrypt ► EncryptedSigningKey  (stored in IndexedDB)
+//  |> PBKDF2 (310k iter, random salt) -> MasterKey  [never extractable]
+//       |> AES-GCM encrypt -> EncryptedPrivateKey  (stored in IndexedDB)
+//       |> AES-GCM encrypt -> EncryptedSigningKey  (stored in IndexedDB)
 //
 // Multi-layer strengthening:
 //   1. PBKDF2  (310,000 iterations, random 32-byte salt)
@@ -38,7 +37,7 @@ async function sha256(data: Uint8Array): Promise<ArrayBuffer> {
 
 export class KeyManager {
   //
-  // 1.  PIN  →  Master Key   (multi-layer, non-extractable)
+  // 1.  PIN  ->  Master Key   (multi-layer, non-extractable)
   //
 
   static async deriveMasterKey(
@@ -90,8 +89,8 @@ export class KeyManager {
       },
       hkdfKey,
       { name: "AES-GCM", length: 256 },
-      false, // ← non-extractable: can never be read out of memory
-      ["wrapKey", "unwrapKey", "decrypt", "encrypt"], // ← only for wrapping/unwrapping keys,
+      false, // <- non-extractable: can never be read out of memory
+      ["wrapKey", "unwrapKey", "decrypt", "encrypt"], // <- only for wrapping/unwrapping keys,
     );
   }
 

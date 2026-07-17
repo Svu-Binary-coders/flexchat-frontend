@@ -7,7 +7,7 @@ export enum FCPVersion {
 
 
 //  Bitwise Flag constants
-// Usage: flags = FCPFlags.BURN | FCPFlags.BLUR  →  flags = 0b10001000 = 136
+// Usage: flags = FCPFlags.BURN | FCPFlags.BLUR  ->  flags = 0b10001000 = 136
 export const FCPFlags = {
   NONE: 0b00000000, // 0
   TXT: 0b00000001, // 1   — plain text

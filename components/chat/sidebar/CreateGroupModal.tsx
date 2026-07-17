@@ -17,9 +17,9 @@ import { Search, Users, Settings, X, Loader2 } from "lucide-react";
 import api from "@/lib/axios";
 
 interface User {
-  _id: string;
+  id: string;
   userName: string;
-  profilePicture?: string;
+  profile_image?: string;
   customId?: string;
 }
 
@@ -36,8 +36,6 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   onClose,
   myId,
   onCreateGroup,
-
-
 }) => {
   const [groupName, setGroupName] = useState("");
   const [description, setDescription] = useState("");
@@ -68,7 +66,7 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
         const response = await api.get(`/chats/search?q=${searchQuery}`);
         if (response?.data?.success && Array.isArray(response.data.users)) {
           const filteredResults = response.data.users.filter(
-            (user: User) => user._id !== myId,
+            (user: User) => user.id !== myId,
           );
           setSearchResults(filteredResults);
         } else {
@@ -86,9 +84,9 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   }, [searchQuery, myId]);
 
   const toggleUserSelection = (user: User) => {
-    const isSelected = selectedUsers.some((u) => u._id === user._id);
+    const isSelected = selectedUsers.some((u) => u.id === user.id);
     if (isSelected) {
-      setSelectedUsers(selectedUsers.filter((u) => u._id !== user._id));
+      setSelectedUsers(selectedUsers.filter((u) => u.id !== user.id));
     } else {
       setSelectedUsers([...selectedUsers, user]);
     }
@@ -98,13 +96,13 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     if (!groupName.trim()) return;
     if (selectedUsers.length < 2) return;
     const participantIds = Array.from(
-      new Set([myId, ...selectedUsers.map((u) => u._id)]),
+      new Set([myId, ...selectedUsers.map((u) => u.id)]),
     );
 
     const groupData = {
       name: groupName,
       description: description,
-      participantIds: participantIds, 
+      participantIds: participantIds,
       groupSettings: settings,
     };
 
@@ -187,12 +185,12 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
                 {selectedUsers.map((user) => (
                   <Badge
-                    key={user._id}
+                    key={user.id}
                     variant="secondary"
                     className="pl-1 pr-2 py-1 flex items-center gap-1.5 rounded-full"
                   >
                     <Avatar className="h-4 w-4">
-                      <AvatarImage src={user.profilePicture} />
+                      <AvatarImage src={user.profile_image} />
                       <AvatarFallback className="text-[10px]">
                         {user.userName[0]}
                       </AvatarFallback>
@@ -222,13 +220,13 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                   ) : (
                     searchResults.map((user) => (
                       <div
-                        key={user._id}
+                        key={user.id}
                         className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer border-b border-slate-100 dark:border-slate-800 last:border-0"
                         onClick={() => toggleUserSelection(user)}
                       >
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={user.profilePicture} />
+                            <AvatarImage src={user.profile_image} />
                             <AvatarFallback>{user.userName[0]}</AvatarFallback>
                           </Avatar>
                           <div className="flex flex-col">
@@ -241,11 +239,9 @@ const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
                           </div>
                         </div>
                         <Checkbox
-                          checked={selectedUsers.some(
-                            (u) => u._id === user._id,
-                          )}
+                          checked={selectedUsers.some((u) => u.id === user.id)}
                           onCheckedChange={() => toggleUserSelection(user)}
-                          onClick={(e) => e.stopPropagation()} // প্রিভেন্ট ডাবল ক্লিক ইস্যু
+                          onClick={(e) => e.stopPropagation()}
                         />
                       </div>
                     ))

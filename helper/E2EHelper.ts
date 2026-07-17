@@ -4,7 +4,7 @@ import { useSessionStore } from "@/stores/sessionStore";
 async function ensureKeys() {
   let { privateKey, signingKey } = useSessionStore.getState();
 
-  //   if cam not find keys in store, try loading from IndexedDB (KeyManager) and update the store
+  //   if can not find keys in store, try loading from IndexedDB (KeyManager) and update the store
   if (!privateKey || !signingKey) {
     console.log(
       "Keys not found in store, attempting to load from KeyManager...",

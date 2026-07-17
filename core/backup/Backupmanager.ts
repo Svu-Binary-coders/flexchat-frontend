@@ -78,14 +78,14 @@ const FIXED_PHRASE_SALT = "FCP-BACKUP-PHRASE-SALT-V1";
 
 //  256 unique words
 
-//  24 random bytes → phrase
+//  24 random bytes -> phrase
 function bytesToPhrase(bytes: Uint8Array): string {
   return Array.from(bytes)
     .map((b) => WORDLIST[b])
     .join(" ");
 }
 
-//  phrase → deterministic 32-byte raw key
+//  phrase -> deterministic 32-byte raw key
 async function phraseToRawBytes(phrase: string): Promise<Uint8Array> {
   const phraseKey = await subtle().importKey(
     "raw",
@@ -144,7 +144,7 @@ export interface EncryptedChatKey {
 export class BackupManager {
   //
   // createBackupKey
-  // Registration এ একবার call করো
+  // call onces in registration — generate BackupKey, recoveryPhrase, encBackupKey
   //
 
   static async createBackupKey(masterKey: CryptoKey): Promise<{
@@ -152,14 +152,14 @@ export class BackupManager {
     recoveryPhrase: string;
     encBackupKey: EncryptedBackupKey;
   }> {
-    // 1. 24 random bytes → phrase
+    // 1. 24 random bytes -> phrase
     const phraseBytes = rand(24);
     const recoveryPhrase = bytesToPhrase(phraseBytes);
 
-    // 2. phrase → rawBackupBytes (deterministic — recovery এ same আসবে)
+    // 2. phrase -> rawBackupBytes (deterministic — recovery same BackupKey)
     const rawBackupBytes = await phraseToRawBytes(recoveryPhrase);
 
-    // 3. rawBackupBytes → BackupKey
+    // 3. rawBackupBytes -> BackupKey
     const backupKey = await importAesKey(rawBackupBytes, [
       "encrypt",
       "decrypt",
@@ -167,8 +167,8 @@ export class BackupManager {
       "unwrapKey",
     ]);
 
-    // 4. rawBackupBytes → MasterKey দিয়ে encrypt → server এ save করো
-    //    normal login এ phrase PBKDF2 এড়ানো যাবে (fast unlock)
+    // 4. BackupKey -> encBackupKey (encrypt with MasterKey for server storage)
+    // 5. return all three
     const encBackupKey = await aesEncrypt(masterKey, rawBackupBytes);
 
     return { backupKey, recoveryPhrase, encBackupKey };
@@ -176,7 +176,7 @@ export class BackupManager {
 
   //
   // restoreBackupKey
-  // Normal Login এ — PIN আছে, server থেকে encBackupKey এনে decrypt করো
+  // Normal login — server sends encBackupKey, decrypt with MasterKey -> BackupKey
   //
 
   static async restoreBackupKey(
@@ -198,12 +198,7 @@ export class BackupManager {
 
   //
   // recoverFromPhrase
-  // PIN ভুলে গেলে — Phrase দিয়ে BackupKey directly recover করো
-  //
-  //
-  // আগের version এ rand(32) ব্যবহার করছিল — সেটা ভুল ছিল।
-  // এখন phrase → PBKDF2 → same rawBackupBytes → same BackupKey।
-  // Server লাগে না।
+  // PIN lost — user enters recoveryPhrase, derive BackupKey, re-encrypt with new MasterKey
 
   static async recoverFromPhrase(
     recoveryPhrase: string,
@@ -217,15 +212,15 @@ export class BackupManager {
     if (!valid) {
       throw new Error(
         invalidWords.length > 0
-          ? `ভুল word: ${invalidWords.slice(0, 3).join(", ")}`
-          : "Recovery phrase অবশ্যই 24 word হতে হবে",
+          ? `Wrong word(s): ${invalidWords.slice(0, 3).join(", ")}`
+          : "Recovery phrase must be 24 words",
       );
     }
 
-    // 2. phrase → rawBackupBytes (registration এর মতো same result)
+    // 2. phrase -> rawBackupBytes (deterministic — same BackupKey)
     const rawBackupBytes = await phraseToRawBytes(recoveryPhrase);
 
-    // 3. BackupKey বানাও
+    // 3. create BackupKey from rawBackupBytes
     const backupKey = await importAesKey(rawBackupBytes, [
       "encrypt",
       "decrypt",
@@ -233,7 +228,7 @@ export class BackupManager {
       "unwrapKey",
     ]);
 
-    // 4. নতুন MasterKey দিয়ে re-encrypt → server এ update করো
+    // 4. BackupKey -> newEncBackupKey (encrypt with new MasterKey for server storage)
     const newEncBackupKey = await aesEncrypt(newMasterKey, rawBackupBytes);
 
     return { backupKey, newEncBackupKey };
@@ -241,12 +236,10 @@ export class BackupManager {
 
   //
   // backupChatKeyRaw
-  // নতুন chat শুরু হলে — ChatKey এর raw bits backup করো
+  // Normal login — server sends encChatKey, decrypt with BackupKey -> rawChatKeyBits -> import as HKDF key
   //
   //
-  // HKDF key directly export করা যায় না।
-  // SessionManager.deriveChatKeyHKDF কে modify করো যাতে raw bits ও return করে।
-  // সেই raw bits এখানে দাও।
+  // HKDF output is not directly usable as AES key - we have to import it as an HKDF key and then derive an AES key from it when we want to use it for encryption. This is a bit less efficient but much simpler than trying to do HKDF ourselves in JS and also allows us to keep the raw ChatKey bits secret (never exposed outside of the CryptoKey) until we actually need to use them for encryption/decryption, which is a better security practice.
 
   static async backupChatKeyRaw(
     backupKey: CryptoKey,
@@ -259,8 +252,7 @@ export class BackupManager {
 
   //
   // restoreAllChatKeys
-  // Login এ — server থেকে সব encChatKey নামিয়ে restore করো
-  //
+  // Restore all chat keys from their encrypted forms using the backup key
 
   static async restoreAllChatKeys(
     backupKey: CryptoKey,
@@ -281,7 +273,7 @@ export class BackupManager {
 
   //
   // reEncryptBackupKey
-  // PIN change হলে — BackupKey same, শুধু নতুন MasterKey দিয়ে re-wrap
+  // Pin change — re-encrypt BackupKey with new MasterKey for server storage
   //
 
   static async reEncryptBackupKey(
@@ -294,7 +286,7 @@ export class BackupManager {
 
   //
   // verifyPhrase
-  // Registration এ user phrase confirm করলে — wordlist check
+  // Registration — check if the user entered a valid 24-word phrase
   //
 
   static verifyPhrase(phrase: string): {
@@ -306,7 +298,7 @@ export class BackupManager {
 
   //
   // phraseToBackupKey
-  // Recovery page এ standalone — শুধু ChatKey restore করতে চাইলে
+  // Recovery page — derive BackupKey from user-entered recovery phrase
   //
 
   static async phraseToBackupKey(recoveryPhrase: string): Promise<CryptoKey> {
@@ -314,8 +306,8 @@ export class BackupManager {
     if (!valid) {
       throw new Error(
         invalidWords.length > 0
-          ? `ভুল word: ${invalidWords.slice(0, 3).join(", ")}`
-          : "24-word phrase দরকার",
+          ? `Wrong word(s): ${invalidWords.slice(0, 3).join(", ")}`
+          : "24-word phrase required",
       );
     }
     const rawBytes = await phraseToRawBytes(recoveryPhrase);

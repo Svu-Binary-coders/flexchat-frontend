@@ -272,7 +272,7 @@ export const loadGroupSenderKeys = async (
             !!senderPublicKey,
           );
           if (!senderPublicKey) {
-            console.warn("[LoadKeys] ❌ no public key for sender:", senderId);
+            console.warn("[LoadKeys]  no public key for sender:", senderId);
             return;
           }
 
@@ -282,10 +282,10 @@ export const loadGroupSenderKeys = async (
             privateKey,
             chatId,
           );
-          console.log("[LoadKeys] ✅ decrypt success for:", senderId);
+          console.log("[LoadKeys]  decrypt success for:", senderId);
           await saveSenderChainKey(chatId, senderId, chainKey);
         } catch (err) {
-          console.error(`[LoadKeys] ❌ FAILED for ${senderId}:`, err);
+          console.error(`[LoadKeys]  FAILED for ${senderId}:`, err);
         }
       },
     ),
@@ -303,7 +303,6 @@ export const encryptGroupMessage = async (
 
   const messageKey = await deriveMessageKey(state.chainKey);
 
-  // ✅ random IV — uniqueness এখান থেকে, counter দরকার নেই
   const iv = safeUint8Array(12);
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -326,22 +325,18 @@ export const decryptGroupMessage = async (
   if (!encryptedContent.startsWith("grp_")) return encryptedContent;
 
   // format: grp_{senderId}:{base64}
-  // senderId তে _ থাকতে পারে তাই lastIndexOf ব্যবহার করছি না
-  // প্রথম : এর আগে সব senderId
-  const colonIdx = encryptedContent.indexOf(":", 4); // "grp_" এর পরে
-  if (colonIdx === -1) return "🔒 [Encrypted Message]";
+  // senderId is the userId of the sender, base64 is the AES-GCM encrypted content
+  const colonIdx = encryptedContent.indexOf(":", 4); // skip "grp_"
+  if (colonIdx === -1) return "[Encrypted Message]";
 
-  const senderId = encryptedContent.slice(4, colonIdx); // "grp_" বাদ দিয়ে
+  const senderId = encryptedContent.slice(4, colonIdx); // Skip "grp_"
   const base64 = encryptedContent.slice(colonIdx + 1);
 
   console.log("[Decrypt] senderId:", senderId);
 
   const state = await getSenderChainKey(chatId, senderId);
-  console.log(
-    "[Decrypt] chain key from IndexDB:",
-    state ? "✅ found" : "❌ NULL",
-  );
-  if (!state) return "🔒 [Encrypted Message]";
+  console.log("[Decrypt] chain key from IndexDB:", state ? " found" : " NULL");
+  if (!state) return "[Encrypted Message]";
 
   const messageKey = await deriveMessageKey(state.chainKey);
 
@@ -360,8 +355,8 @@ export const decryptGroupMessage = async (
 
     return new TextDecoder().decode(decrypted);
   } catch (err) {
-    console.error("[Decrypt] ❌ AES-GCM decrypt failed:", err);
-    return "🔒 [Encrypted Message]";
+    console.error("[Decrypt]  AES-GCM decrypt failed:", err);
+    return "[Encrypted Message]";
   }
 };
 

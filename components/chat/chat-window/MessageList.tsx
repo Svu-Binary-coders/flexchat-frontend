@@ -11,6 +11,7 @@ import { useChatHistory } from "@/hooks/useChatHistory";
 import { useAppearanceStore } from "@/stores/appearanceStore";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
+import Image from "next/image";
 
 const NEAR_BOTTOM_PX = 150;
 const SHOW_BTN_PX = 250;
@@ -25,7 +26,7 @@ export default function MessageList() {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useChatHistory(myId, activeContact?.customChatId, activeContact?._id);
+  } = useChatHistory(myId, activeContact?.customChatId, activeContact?.id);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -43,7 +44,6 @@ export default function MessageList() {
     const el = scrollContainerRef.current;
     if (!el) return;
     isNearBottomRef.current = true;
-    // setShowScrollButton কে rAF এর ভেতরে রাখলে effect এর synchronous setState warning আসে না
     requestAnimationFrame(() => {
       el.scrollTo({ top: el.scrollHeight, behavior });
       setShowScrollButton(false);
@@ -60,7 +60,7 @@ export default function MessageList() {
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [activeContact?._id]);
+  }, [activeContact?.id]);
   // intial load , we want to scroll to bottom only after the messages are loaded. If we scroll before loading, it might scroll to the wrong position because the messages haven't been rendered yet, which can cause the scroll to jump around or not reach the bottom. By adding msgLoading as a dependency and checking it before scrolling, we ensure that we only scroll to the bottom once the messages are fully loaded and rendered in the store.
   useEffect(() => {
     if (!messages.length) return;
@@ -69,7 +69,7 @@ export default function MessageList() {
     isFirstLoadRef.current = false;
     prevLengthRef.current = messages.length;
     scrollToBottom("instant");
-  }, [messages.length, activeContact?._id, msgLoading, scrollToBottom]);
+  }, [messages.length, activeContact?.id, msgLoading, scrollToBottom]);
 
   //  3. New message arrived
   useEffect(() => {
@@ -245,15 +245,14 @@ export default function MessageList() {
                     <div
                       key={msg._id}
                       className={cn(
-                        "flex items-start gap-2", // ← items-end → items-start
+                        "flex items-start gap-2",
                         isMyMessage ? "flex-row-reverse" : "flex-row",
                       )}
                     >
-                      {/*  Avatar — TOP এ, first message এ  */}
                       {isGroup && !isMyMessage && (
                         <div className="w-7 h-7 flex-shrink-0 mt-1">
                           {isFirstInChain ? (
-                            <img
+                            <Image
                               src={
                                 msg.senderDetails?.profilePicture ||
                                 "/default-avatar.png"

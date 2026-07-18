@@ -39,12 +39,12 @@ export default function ForwardModal() {
         <div className="max-h-64 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
           {contacts.map((c) => (
             <button
-              key={c._id}
-              onClick={() => handleForward(c._id)}
+              key={c.id}
+              onClick={() => handleForward(c.id)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
             >
               <Avatar className="h-8 w-8 border border-slate-100 dark:border-slate-700">
-                <AvatarImage src={c.avatar} />
+                <AvatarImage src={c.profile_image} />
                 <AvatarFallback className="bg-linear-to-br from-sky-400 to-blue-600 text-white text-xs font-semibold">
                   {c.name.slice(0, 2).toUpperCase()}
                 </AvatarFallback>

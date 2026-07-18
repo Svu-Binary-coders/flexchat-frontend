@@ -14,24 +14,20 @@ export default function LinkPreviewCard({ content }: Props) {
   const url = extractUrl(content);
   const { data: preview, isLoading } = useLinkPreview(url);
 
-  // ১. URL না থাকলে বা ডাটা লোড হওয়ার সময় কার্ড হাইড থাকবে
   if (!url || isLoading) return null;
 
-  // ২. প্রিভিউ ডাটা না থাকলে (title বা siteName কোনোটিই না থাকলে) হাইড থাকবে
   if (!preview || (!preview.title && !preview.siteName && !preview.image))
     return null;
 
-  // ৩. URL ক্র্যাশ রোধ করার জন্য ট্রাই-ক্যাচ (Try-Catch) ব্যবহার করা হলো
   let hostname = url;
   try {
     hostname = new URL(url).hostname;
   } catch (e) {
-    // যদি URL পার্স করতে না পারে, তবে অরিজিনালটাই দেখাবে
   }
 
   return (
     <a
-      href={url.startsWith("http") ? url : `https://${url}`} // লিঙ্কে ক্লিক করলে যেন কাজ করে
+      href={url.startsWith("http") ? url : `https://${url}`}
       target="_blank"
       rel="noopener noreferrer"
       className={cn(

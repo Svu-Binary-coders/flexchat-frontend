@@ -88,6 +88,7 @@ function ReactionDetailsModal({
 }) {
   const { contacts } = useChatStore();
   const { myId } = useAuthStore();
+  console.log("reactionMap", reactionMap, contacts, myId);
 
   return (
     <div
@@ -115,11 +116,11 @@ function ReactionDetailsModal({
         <div className="overflow-y-auto p-2 custom-scrollbar">
           {Object.entries(reactionMap).map(([emoji, userIds]) =>
             userIds.map((userId) => {
-              const user = contacts.find((c) => c._id === userId);
+              const user = contacts.find((c) => c.id === userId);
               const name =
                 userId === myId ? "You" : user?.name || "Unknown User";
               const avatar =
-                user?.avatar ||
+                user?.profile_image ||
                 "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
               return (

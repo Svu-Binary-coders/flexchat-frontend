@@ -399,9 +399,8 @@ export default function GroupDetailsSidebar({
         const newAvatarUrl = data.url;
 
         // group details cache update
-        qc.setQueryData<GroupDetails>(
-          ["group-details", chatId],
-          (old) => (old ? { ...old, groupAvatarUrl: newAvatarUrl } : old),
+        qc.setQueryData<GroupDetails>(["group-details", chatId], (old) =>
+          old ? { ...old, groupAvatarUrl: newAvatarUrl } : old,
         );
 
         // contacts list cache update
@@ -434,7 +433,7 @@ export default function GroupDetailsSidebar({
         );
         useChatStore.setState((s) => ({
           contacts: s.contacts.map((c) =>
-            c._id === chatId ? { ...c, avatar: undefined } : c,
+            c.id === chatId ? { ...c, profile_image: undefined } : c,
           ),
         }));
         toast.success("Group image removed");

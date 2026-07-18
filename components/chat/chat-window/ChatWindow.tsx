@@ -16,7 +16,7 @@ export default function ChatWindow() {
   const { activeContact } = useChatStore();
   const [showProfile, setShowProfile] = useState(false);
   const myId = useAuthStore((state) => state.myId);
-  const chatId = activeContact?.customChatId ?? activeContact?._id ?? ""; 
+  const chatId = activeContact?.customChatId ?? activeContact?.id ?? ""; 
   const chatSettings = useChatSettings(chatId);
   const isProtected = !!chatSettings?.isScreenShotBlur;
 
@@ -30,7 +30,7 @@ export default function ChatWindow() {
         (e.metaKey && e.shiftKey && e.key === "4"); // Mac
 
       if (isScreenshot) {
-        toast.warning("Screenshot attempt detected 🛡️");
+        toast.warning("Screenshot attempt detected");
       }
     };
     window.addEventListener("keydown", onKey);
@@ -42,7 +42,7 @@ export default function ChatWindow() {
   const handleCopy = (e: React.ClipboardEvent) => {
     if (isProtected && !chatSettings?.isCopyEnabled) {
       e.preventDefault();
-      toast.error("Copy blocked 🚫");
+      toast.error("Copy blocked");
     }
   };
 
@@ -73,13 +73,13 @@ export default function ChatWindow() {
   }
 
   // ================================
-  // ✅ MAIN UI (Without Blur)
+  //  MAIN UI (Without Blur)
   // ================================
   return (
     <div className="relative flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-slate-950">
       <ChatHeader onProfileClick={() => setShowProfile(true)} />
 
-      {/* 🛡️ REPEATING WATERMARK (Always Visible) */}
+      {/*  REPEATING WATERMARK (Always Visible) */}
       {isProtected && activeContact?.name && (
         <div
           className="absolute inset-0 pointer-events-none z-[45] select-none"
@@ -114,15 +114,15 @@ export default function ChatWindow() {
       {showProfile &&
         (activeContact.isGroupChat ? (
           <GroupDetailsSidebar
-            chatId={activeContact._id}
-            customChatId={activeContact.customChatId || activeContact._id}
+            chatId={activeContact.id}
+            customChatId={activeContact.customChatId || activeContact.id}
             myId={myId}
             open={showProfile}
             onClose={() => setShowProfile(false)}
           />
         ) : (
           <ProfilePanel
-            userId={activeContact._id}
+            userId={activeContact.id}
             open={showProfile}
             onClose={() => setShowProfile(false)}
           />

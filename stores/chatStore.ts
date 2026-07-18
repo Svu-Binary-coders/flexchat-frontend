@@ -380,8 +380,14 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     const { activeContact } = get();
     const socket = io(SOCKET_URL, {
       reconnection: true,
-      reconnectionDelay: 1000,
+      timeout: 10000, // 10 seconds when trying to connect
+      reconnectionDelay: 1000, // 1 second to reconnect
+      reconnectionAttempts: 5, // Try to reconnect 5 times
+      query: { userId: myId },
       withCredentials: true,
+    });
+    socket.on("connect_error", (err) => {
+      console.error(" Socket Connection Error:", err.message);
     });
 
     if (myId) socket.emit("setup", myId);
@@ -643,7 +649,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         const chatId = activeContact?.customChatId;
         let decryptedContent = newContent;
 
-        // ✅ group edit decrypt
+        //  group edit decrypt
         if (activeContact?.isGroupChat && isGroupEncrypted(newContent)) {
           try {
             decryptedContent = await decryptGroupMessage(newContent, chatId!);
@@ -952,7 +958,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     if (!msgInput.trim() || !activeContact || !myId) return;
 
     const content = msgInput.trim();
-    const chatId = activeContact.id;
+    const chatId = activeContact.customChatId;
 
     if (!chatId) return;
 
@@ -985,7 +991,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       // EDIT MODE
       if (editingMsg) {
         socket?.emit(
-          "edit_messsage",
+          "edit_message",
           {
             messageId: editingMsg._id,
             newContent: encryptedContent,
@@ -1040,7 +1046,12 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
 
       const disappearingDuration =
         getChatSettings(chatId).disappearingTimer ?? undefined;
-
+      console.log(
+        "chatId:",
+        chatId,
+        "disappearingDuration:",
+        disappearingDuration,
+      );
       socket?.emit(
         "send_message",
         {
@@ -1249,7 +1260,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
             publicId: item.publicId ?? null,
           }))
         : undefined;
-
     socket?.emit(
       "send_message",
       {

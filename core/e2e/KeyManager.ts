@@ -329,6 +329,24 @@ export class KeyManager {
   static async clearActiveKeys(): Promise<void> {
     await KeyManager._idbDelete("fcp_active_session");
   }
+
+  static async clearAllKeys(): Promise<void> {
+    await KeyManager._idbDelete("fcp_active_session");
+    // Clear all identities
+    const db = await KeyManager._openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("store", "readwrite");
+      const store = tx.objectStore("store");
+      const req = store.clear();
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  static async hasOwnKeys(): Promise<boolean> {
+    const session = await KeyManager.loadActiveKeys();
+    return !!session;
+  }
 }
 
 export interface ActiveSession {

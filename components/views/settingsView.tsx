@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import {
   UserCircle,
-  Lock,
   Bell,
   Shield,
   MessageSquare,
@@ -14,6 +13,7 @@ import {
   ChevronLeft,
   Settings as SettingsIcon,
   LockKeyholeIcon,
+  Lock, // Added this import to fix missing Lock icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ import { Help } from "../settings/Help";
 import Accounts from "../settings/Accounts";
 import ChatLock from "../settings/ChatLock";
 import DeviceList from "../settings/devices";
+import { SettingsSearch } from "../settings/SettingsSearch";
 
 type SettingSection =
   | "profile"
@@ -44,8 +45,11 @@ type SettingSection =
 interface NavItem {
   id: SettingSection;
   label: string;
-  icon: React.ElementType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: any;
+  group: string;
 }
+
 const VALID_SECTIONS: SettingSection[] = [
   "profile",
   "account",
@@ -60,19 +64,47 @@ const VALID_SECTIONS: SettingSection[] = [
 ];
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "profile", label: "Profile", icon: UserCircle },
-  { id: "account", label: "Account", icon: Lock },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "devices", label: "Devices", icon: LockKeyholeIcon },
-  { id: "privacy", label: "Privacy & Security", icon: Shield },
-  { id: "chat-lock", label: "Chat Lock", icon: MessageSquare },
-  { id: "appearance", label: "Appearance", icon: Paintbrush },
-  { id: "security", label: "Security (2FA)", icon: KeyRound },
-  { id: "data", label: "Data & Storage", icon: Database },
-  { id: "help", label: "Help & Support", icon: HelpCircle },
+  { id: "profile", label: "Profile", icon: UserCircle, group: "General" },
+  { id: "account", label: "Account", icon: Lock, group: "General" },
+
+  {
+    id: "privacy",
+    label: "Privacy & Security",
+    icon: Shield,
+    group: "Security",
+  },
+  {
+    id: "security",
+    label: "Security (2FA)",
+    icon: KeyRound,
+    group: "Security",
+  },
+  {
+    id: "chat-lock",
+    label: "Chat Lock",
+    icon: MessageSquare,
+    group: "Security",
+  },
+  { id: "devices", label: "Devices", icon: LockKeyholeIcon, group: "Security" },
+
+  {
+    id: "appearance",
+    label: "Appearance",
+    icon: Paintbrush,
+    group: "Preferences",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    group: "Preferences",
+  },
+  { id: "data", label: "Data & Storage", icon: Database, group: "Preferences" },
+
+  { id: "help", label: "Help & Support", icon: HelpCircle, group: "Support" },
 ];
 
-//  Settings Content Area
+// Settings Content Area
 function SettingsContent({
   section,
   onMobileBack,
@@ -101,7 +133,7 @@ function SettingsContent({
       case "help":
         return <Help />;
       case "chat-lock":
-        return <ChatLock/>;
+        return <ChatLock />;
       case "devices":
         return <DeviceList />;
       default:
@@ -144,7 +176,7 @@ function SettingsContent({
   );
 }
 
-//  Main Settings View
+// Main Settings View
 export default function SettingsView({
   activeSubPage,
   onBackToApp,
@@ -191,7 +223,7 @@ export default function SettingsView({
 
   return (
     <div className="flex h-full w-full bg-white dark:bg-slate-950 overflow-hidden animate-in fade-in duration-500">
-      {/*  Settings Sidebar  */}
+      {/* Settings Sidebar */}
       <div
         className={cn(
           "flex flex-col w-full md:w-[320px] md:min-w-[320px] border-r border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 transition-all",
@@ -210,48 +242,64 @@ export default function SettingsView({
             Settings
           </h2>
         </div>
+        <div className="px-4 pb-4 border-b border-slate-50 dark:border-slate-900/50">
+          <SettingsSearch />
+        </div>
 
-        {/* Sidebar Nav Items */}
+        {/* Sidebar Nav Items (Grouped List) */}
         <div className="flex-1 overflow-y-auto py-4 px-3 custom-scrollbar">
-          <p className="px-4 pb-3 text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase opacity-60">
-            Account & Security
-          </p>
+          {Object.entries(
+            NAV_ITEMS.reduce(
+              (acc, item) => {
+                if (!acc[item.group]) acc[item.group] = [];
+                acc[item.group].push(item);
+                return acc;
+              },
+              {} as Record<string, NavItem[]>,
+            ),
+          ).map(([groupName, items]) => (
+            <div key={groupName} className="mb-5 last:mb-2">
+              <p className="px-4 pb-2 text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase opacity-60">
+                {groupName}
+              </p>
 
-          <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => handleSelect(id)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition-all duration-200 group relative overflow-hidden",
-                  currentSection === id
-                    ? "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.1)]"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50",
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                    currentSection === id
-                      ? "text-sky-500"
-                      : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-sm transition-colors",
-                    currentSection === id ? "font-bold" : "font-medium",
-                  )}
-                >
-                  {label}
-                </span>
+              <nav className="flex flex-col gap-1">
+                {items.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => handleSelect(id)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition-all duration-200 group relative overflow-hidden",
+                      currentSection === id
+                        ? "bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-400 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.1)]"
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/50",
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
+                        currentSection === id
+                          ? "text-sky-500"
+                          : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300",
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        "text-sm transition-colors",
+                        currentSection === id ? "font-bold" : "font-medium",
+                      )}
+                    >
+                      {label}
+                    </span>
 
-                {currentSection === id && (
-                  <div className="absolute left-0 w-1 h-6 bg-sky-500 rounded-r-full shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
-                )}
-              </button>
-            ))}
-          </nav>
+                    {currentSection === id && (
+                      <div className="absolute left-0 w-1 h-6 bg-sky-500 rounded-r-full shadow-[0_0_8px_rgba(14,165,233,0.5)]" />
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          ))}
 
           {/* Upgrade Card */}
           <div className="mt-8 mx-2 p-5 rounded-2xl bg-linear-to-br from-slate-900 to-slate-800 dark:from-slate-900/80 dark:to-slate-950 border border-slate-800 shadow-xl relative overflow-hidden group">
@@ -274,7 +322,7 @@ export default function SettingsView({
         </div>
       </div>
 
-      {/*  Settings Content Area  */}
+      {/* Settings Content Area */}
       <div
         className={cn(
           "flex-1 overflow-hidden bg-slate-50 dark:bg-[#0b141a] md:bg-slate-50/30",

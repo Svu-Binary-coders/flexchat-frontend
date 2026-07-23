@@ -74,26 +74,27 @@ FlexChat is a next-generation, zero-trust, and covert messaging application. It 
 
 ## 🛠️ Tech Stack
 
-| Component                             | Technology                          |
-| ------------------------------------- | ----------------------------------- |
-| **Frontend**                          | Next.js                             |
-| Frontend caching and state management | Zustand, TanStack Query             |
-| **Realtime**                          | Socket.IO client                    |
-| **UI**                                | Tailwind CSS, Radix UI              |
+| Component                             | Technology              |
+| ------------------------------------- | ----------------------- |
+| **Frontend**                          | Next.js                 |
+| Frontend caching and state management | Zustand, TanStack Query |
+| **Realtime**                          | Socket.IO client        |
+| **UI**                                | Tailwind CSS, Radix UI  |
+
 |**
-| **Backend**                           | Node.js                             |
-| **Mobile**                            | React Native (iOS & Android Future) |
-| **Database**                          | MongoDB , Redis (caching)           |
-| **Queue**                             | BullMQ                              |
-| **Encryption Engine**                 | web crypto                          |
-| **Encryption**                        | FCP protocol (own protocol)         |
-| **AI**                                | TensorFlow Lite                     |
-| **Real-time**                         | Secure WebSockets                   |
-| **Calling**                           | WebRTC                              |
+| **Backend** | Node.js |
+| **Mobile** | React Native (iOS & Android Future) |
+| **Database** | MongoDB , Redis (caching) |
+| **Queue** | BullMQ |
+| **Encryption Engine** | web crypto |
+| **Encryption** | FCP protocol (own protocol) |
+| **AI** | TensorFlow Lite |
+| **Real-time** | Secure WebSockets |
+| **Calling\*\* | WebRTC |
 
 ---
 
-## 🚀 Setup Guide
+## Setup Guide
 
 ### Required Software
 

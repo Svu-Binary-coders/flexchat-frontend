@@ -45,16 +45,12 @@ export function AttachmentPicker() {
     const rawFiles = Array.from(e.target.files ?? []);
     if (!rawFiles.length) return;
 
-    // ব্রাউজার MIME type দিতে না পারলে আমরা ম্যানুয়ালি সেট করে দেবো
     const processedFiles = rawFiles.map((file) => {
       if (!file.type) {
-        // ফাইলের নাম থেকে এক্সটেনশন বের করা (যেমন: app.js -> js)
         const ext = file.name.split(".").pop()?.toLowerCase() || "";
 
-        // আমাদের লিস্টে থাকলে সেটা দেবো, না থাকলে ডিফল্ট বাইনারি টাইপ দেবো
         const mimeType = fallbackMimeTypes[ext] || "application/octet-stream";
 
-        // File অবজেক্টের type read-only, তাই নতুন অবজেক্ট বানাচ্ছি
         return new File([file], file.name, {
           type: mimeType,
           lastModified: file.lastModified,
@@ -94,7 +90,6 @@ export function AttachmentPicker() {
       ref: fileRef,
       icon: FileText,
       label: "File",
-      // এখানে .js এবং .ts যুক্ত করা হলো যাতে ইউজার পিকার থেকে সিলেক্ট করতে পারে
       accept: ".pdf,.zip,.rar,.doc,.docx,.xls,.xlsx,.txt,.csv,.js,.ts",
       multiple: true,
     },
@@ -146,3 +141,4 @@ export function AttachmentPicker() {
     </div>
   );
 }
+

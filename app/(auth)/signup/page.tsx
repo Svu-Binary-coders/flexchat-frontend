@@ -46,11 +46,11 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [pin, setPin] = useState("");
 
-  // 🚀 Email verification state — independent of registration
+  //  Email verification state — independent of registration
   const [emailVerified, setEmailVerified] = useState(false);
   const [sendingOtp, setSendingOtp] = useState(false);
 
-  // 🚀 User ID State
+  //  User ID State
   const [userId, setUserId] = useState("");
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -71,14 +71,14 @@ export default function SignupPage() {
   const [recoveryPhrase, setRecoveryPhrase] = useState("");
   const [phraseConfirmed, setPhraseConfirmed] = useState(false);
 
-  // 🚀 Resend OTP state — separate from sendingOtp/verifying
+  //  Resend OTP state — separate from sendingOtp/verifying
   const [resending, setResending] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
   const router = useRouter();
   const fingerprint = useFingerprint();
 
-  // 🚀 Any edit to the email field invalidates a previous verification —
+  //  Any edit to the email field invalidates a previous verification —
   // otherwise someone could verify email A then swap in email B and still pass as "verified"
   useEffect(() => {
     setEmailVerified(false);
@@ -86,7 +86,7 @@ export default function SignupPage() {
 
   const isValidEmail = EMAIL_REGEX.test(email.trim());
 
-  // 🚀 Instant userId format validation — no debounce, no API call
+  //  Instant userId format validation — no debounce, no API call
   const isValidFormat = USER_ID_REGEX.test(userId);
   const formatMessage = !userId.trim()
     ? ""
@@ -98,7 +98,7 @@ export default function SignupPage() {
           ? "User ID must contain at least one number or underscore"
           : "Only lowercase letters, numbers, and underscores allowed (must start with a letter)";
 
-  // 🚀 Instant password format validation — no debounce, no API call
+  //  Instant password format validation — no debounce, no API call
   const isValidPassword = PASSWORD_REGEX.test(password);
   const passwordMessage = !password
     ? ""
@@ -114,7 +114,7 @@ export default function SignupPage() {
               ? "Password must contain at least one special character"
               : "";
 
-  // 🚀 User ID Availability Check Effect — only the API call is debounced,
+  //  User ID Availability Check Effect — only the API call is debounced,
   // and only fires once the format is already valid
   useEffect(() => {
     const checkUserIdAvailability = async (id: string) => {
@@ -125,6 +125,7 @@ export default function SignupPage() {
         );
         setIsAvailable(response.data.available);
         setUserIdMessage(response.data.message || "");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         console.error("Error checking User ID availability:", error);
         setIsAvailable(false);
@@ -159,7 +160,7 @@ export default function SignupPage() {
     return () => clearTimeout(delayDebounceFn);
   }, [userId, isValidFormat]);
 
-  // 🚀 Resend cooldown ticker
+  //  Resend cooldown ticker
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setInterval(() => {
@@ -168,7 +169,7 @@ export default function SignupPage() {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // 🚀 Triggered by the "Send OTP" button beside the email field — only sends the OTP,
+  //  Triggered by the "Send OTP" button beside the email field — only sends the OTP,
   // does not touch name/userId/password/pin at all
   const handleSendOtp = async () => {
     if (!email.trim()) {
@@ -203,7 +204,7 @@ export default function SignupPage() {
     }
   };
 
-  // 🚀 Resend OTP — separate loading/cooldown state
+  //  Resend OTP — separate loading/cooldown state
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || resending) return;
 
@@ -228,7 +229,7 @@ export default function SignupPage() {
     }
   };
 
-  // 🚀 Close modal + fully reset OTP-related state so reopening never shows stale data
+  //  Close modal + fully reset OTP-related state so reopening never shows stale data
   const handleCloseModal = () => {
     setShowModal(false);
     setModalStep("otp");
@@ -237,7 +238,7 @@ export default function SignupPage() {
     setResending(false);
   };
 
-  // 🚀 Only verifies the OTP and marks email as verified — does NOT register the account
+  //  Only verifies the OTP and marks email as verified — does NOT register the account
   const handleVerifyOtp = async () => {
     if (!otp.trim()) {
       toast.error("Please enter the OTP");
@@ -275,7 +276,7 @@ export default function SignupPage() {
     }
   };
 
-  // 🚀 Final submit — only runs after email is already verified. Does registration + E2E setup.
+  //  Final submit — only runs after email is already verified. Does registration + E2E setup.
   const handleRegister = async () => {
     if (
       !name.trim() ||
@@ -686,7 +687,7 @@ export default function SignupPage() {
                     className="text-center tracking-widest text-lg h-12 rounded-xl border-slate-200 focus-visible:ring-1 focus-visible:ring-sky-400"
                   />
 
-                  {/* 🚀 Resend OTP row */}
+                  {/*  Resend OTP row */}
                   <div className="flex items-center justify-center text-xs">
                     {resendCooldown > 0 ? (
                       <span className="text-slate-400">

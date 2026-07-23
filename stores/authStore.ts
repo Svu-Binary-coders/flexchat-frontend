@@ -10,6 +10,7 @@ interface AuthStore {
   setAuth: (details: IMyDetails) => void;
   setMyDetails: (details: Partial<IMyDetails>) => void;
   logout: () => void;
+  
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -22,10 +23,10 @@ export const useAuthStore = create<AuthStore>()(
 
       setAuth: (details) =>
         set({
-          myId: details._id,
+          myId: details.id,
           myDetails: details,
           isAuthenticated: true,
-          isChatLockEnabled: details.isChatLockEnabled,
+          isChatLockEnabled: details.is_chat_lock_enabled,
         }),
 
       setMyDetails: (updatedDetails) =>

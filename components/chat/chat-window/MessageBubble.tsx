@@ -45,12 +45,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useMediaStore } from "@/stores/mediaStore";
 
 type ReactionMap = { [emoji: string]: string[] };
 
 function normalizeReactions(raw: any): ReactionMap {
   if (!raw) return {};
-  // Already object map
   if (!Array.isArray(raw)) return raw as ReactionMap;
 
   const map: ReactionMap = {};
@@ -78,7 +78,6 @@ function normalizeReactions(raw: any): ReactionMap {
   return map;
 }
 
-//  Reaction Details Modal
 function ReactionDetailsModal({
   reactionMap,
   onClose,
@@ -88,7 +87,6 @@ function ReactionDetailsModal({
 }) {
   const { contacts } = useChatStore();
   const { myId } = useAuthStore();
-  console.log("reactionMap", reactionMap, contacts, myId);
 
   return (
     <div
@@ -99,7 +97,6 @@ function ReactionDetailsModal({
         className="bg-white dark:bg-slate-800 rounded-2xl w-80 max-h-[400px] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
           <h3 className="font-semibold text-slate-800 dark:text-slate-100">
             Reactions
@@ -112,7 +109,6 @@ function ReactionDetailsModal({
           </button>
         </div>
 
-        {/* List of Users */}
         <div className="overflow-y-auto p-2 custom-scrollbar">
           {Object.entries(reactionMap).map(([emoji, userIds]) =>
             userIds.map((userId) => {
@@ -151,7 +147,6 @@ function ReactionDetailsModal({
   );
 }
 
-//  Global animation styles
 const bubbleAnimStyles = `
   @keyframes bubbleIn {
     from { opacity: 0; transform: translateY(8px) scale(0.97); }
@@ -169,8 +164,6 @@ const bubbleAnimStyles = `
   .bubble-enter { animation: bubbleIn 0.22s cubic-bezier(0.34,1.2,0.64,1) both; }
   .reaction-pop { animation: reactionPop 0.25s cubic-bezier(0.34,1.4,0.64,1) both; }
 `;
-
-//  helpers
 
 const sizeLabel = (bytes: number) => {
   if (!bytes) return "";
@@ -207,7 +200,6 @@ const safeStr = (val: unknown): string => {
   return "";
 };
 
-//  Forwarded Label
 function ForwardedLabel({ isMine }: { isMine: boolean }) {
   return (
     <div
@@ -222,7 +214,6 @@ function ForwardedLabel({ isMine }: { isMine: boolean }) {
   );
 }
 
-//  Reaction Bar
 function ReactionBar({
   reactions,
   myId,
@@ -277,8 +268,6 @@ function ReactionBar({
   );
 }
 
-//  FileIcon
-
 export const FileIcon = ({
   mimeType,
   className,
@@ -321,7 +310,6 @@ export const FileIcon = ({
   return <File className={cn("text-slate-400", className)} />;
 };
 
-//  Download button
 type DlState = "idle" | "downloading" | "done" | "error";
 
 function useDownload() {
@@ -467,8 +455,6 @@ function DownloadBtn({
     </TooltipProvider>
   );
 }
-
-//  Voice Message Player
 
 function VoicePlayer({
   url,
@@ -631,8 +617,6 @@ function VoicePlayer({
   );
 }
 
-//  Reply Preview
-
 type ReplyPreviewProps = {
   replyTo: Message;
   myId?: string;
@@ -653,7 +637,6 @@ function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
   const replyContent = safeStr(replyTo.content);
   const hasText = !!replyContent.trim();
 
-  // ✅ senderDetails থেকে name নাও
   const senderName =
     replyTo.senderDetails?.userName ||
     (replyTo.senderId === myId ? "You" : "Message");
@@ -670,7 +653,6 @@ function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
     >
       <CornerUpRight className="h-3 w-3 shrink-0 opacity-50" />
 
-      {/* ✅ Image preview */}
       {imgs.length > 0 && (
         <img
           src={imgs[0].url}
@@ -679,14 +661,12 @@ function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
         />
       )}
 
-      {/* ✅ Video preview */}
       {vids.length > 0 && imgs.length === 0 && (
         <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
           <Video className="h-4 w-4 text-white/60" />
         </div>
       )}
 
-      {/* ✅ File preview */}
       {files.length > 0 && imgs.length === 0 && vids.length === 0 && (
         <div
           className={cn(
@@ -705,14 +685,11 @@ function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
             isMine ? "text-white/70" : "text-sky-500 dark:text-sky-400",
           )}
         >
-          {senderName} {/* ✅ name দেখাও */}
+          {senderName}
         </span>
 
         <span className="truncate opacity-60 flex items-center gap-1">
-          {/* content আছে */}
           {hasText && replyContent}
-
-          {/* content নেই — type দেখাও */}
           {!hasText && imgs.length > 0 && (
             <>
               <ImageIcon className="h-3 w-3 shrink-0" /> Photo
@@ -745,7 +722,6 @@ function ReplyPreview({ replyTo, myId, isMine, onClick }: ReplyPreviewProps) {
     </div>
   );
 }
-//  Status icon
 
 const StatusIcon = ({ status }: { status: MessageStatus }) => {
   if (status === MessageStatus.SENDING)
@@ -760,8 +736,6 @@ const StatusIcon = ({ status }: { status: MessageStatus }) => {
     return <CheckCheck className="h-3 w-3 text-sky-200" />;
   return null;
 };
-
-//  Image grid
 
 const MessageImageGrid = ({
   mediaAtts,
@@ -894,13 +868,10 @@ const MessageImageGrid = ({
   );
 };
 
-//
-//  MessageBubble (main export)
-//
-
 export default function MessageBubble({ message }: { message: Message }) {
   const { myId } = useAuthStore();
   const { openCtx } = useChatStore();
+  const { uploadingMedias } = useMediaStore();
   const { fontStyle, textSize, bubbleStyle, compactMode, timeFormat } =
     useAppearanceStore();
 
@@ -911,13 +882,21 @@ export default function MessageBubble({ message }: { message: Message }) {
   const isDeleted = message.is_deleted_for_everyone;
   const isTemp = (message as any).isTemp === true;
   const attachments: any[] = (message as any).attachments ?? [];
-  const uploadProgress = (message as any).uploadProgress ?? 0;
 
-  //  Normalize forwarded flag (DB: is_forwarded, type: isForwarded)
+  let uploadProgress = 0;
+  if (isTemp) {
+    const liveItem = uploadingMedias.find(
+      (item) =>
+        item.id === (message as any).tempId ||
+        attachments.some((a) => a.url === item.previewUrl),
+    );
+    if (liveItem) {
+      uploadProgress = liveItem.progress;
+    }
+  }
+
   const isForwarded =
     message.isForwarded ?? (message as any).is_forwarded ?? false;
-
-  //  Normalize reactions (DB: [] or [{emoji, userIds}], type: object map)
   const reactions = normalizeReactions(message.reactions);
   const hasReactions = Object.values(reactions).some((u) => u.length > 0);
 
@@ -984,9 +963,6 @@ export default function MessageBubble({ message }: { message: Message }) {
       </button>
     ) : null;
 
-  //
-  // Media / attachment bubble
-  //
   if ((hasMedia || hasVoice || hasFiles) && !isDeleted) {
     const videoAtts = mediaAtts.filter((a) => a.type === "video");
 
@@ -1019,7 +995,7 @@ export default function MessageBubble({ message }: { message: Message }) {
             "relative flex items-end gap-2 group bubble-enter",
             compactMode ? "mb-0.5" : "mb-2",
             isMine ? "ml-auto flex-row-reverse" : "mr-auto",
-            "max-w-[75%]",
+            "min-w-[72px] max-w-[min(75%,420px)]",
           )}
         >
           <div className="flex flex-col">
@@ -1035,7 +1011,6 @@ export default function MessageBubble({ message }: { message: Message }) {
             >
               {renderCtxBtn("absolute top-2 right-2")}
 
-              {/*  Forwarded label (media bubble)  */}
               {isForwarded && (
                 <div
                   className={cn(
@@ -1050,7 +1025,6 @@ export default function MessageBubble({ message }: { message: Message }) {
                 </div>
               )}
 
-              {/* Reply preview */}
               {message.replyTo && (
                 <div
                   className={cn(
@@ -1058,7 +1032,6 @@ export default function MessageBubble({ message }: { message: Message }) {
                     isMine
                       ? "bg-gradient-to-br from-sky-500 to-blue-600 rounded-t-2xl"
                       : "bg-white dark:bg-slate-800 rounded-t-2xl border-x border-t border-slate-200/80 dark:border-slate-700/80",
-                    // If forwarded label already rendered, don't re-round top
                     isForwarded && "rounded-t-none",
                   )}
                 >
@@ -1071,7 +1044,6 @@ export default function MessageBubble({ message }: { message: Message }) {
                 </div>
               )}
 
-              {/* Image grid */}
               {hasMedia && (
                 <MessageImageGrid
                   mediaAtts={mediaAtts}
@@ -1090,27 +1062,81 @@ export default function MessageBubble({ message }: { message: Message }) {
                 />
               )}
 
-              {/* Video player */}
-              {videoAtts.map((v: any, i: number) => {
-                const absoluteIndex = mediaAtts.findIndex(
-                  (a) => a.url === v.url,
-                );
-                return (
-                  <VideoPlayer
-                    key={i}
-                    url={v.url}
-                    publicId={v.publicId}
-                    name={v.name}
-                    size={v.size}
-                    isMine={isMine}
-                    disabled={isTemp}
-                    onExpand={() => {
-                      setViewerIndex(absoluteIndex >= 0 ? absoluteIndex : 0);
-                      setViewerOpen(true);
-                    }}
-                  />
-                );
-              })}
+              {/* Video Grid / Player */}
+              {videoAtts.length > 0 && (
+                <div
+                  className={cn(
+                    "overflow-hidden relative",
+                    videoAtts.length > 1
+                      ? "grid gap-0.5 w-[248px] grid-cols-2" // একাধিক ভিডিও হলে গ্রিড
+                      : "flex flex-col gap-0.5", // একটি ভিডিও হলে নরমাল
+
+                    // গ্রিড কন্টেইনারের বর্ডার রেডিয়াস
+                    videoAtts.length > 1 &&
+                      (hasCaption
+                        ? "rounded-t-2xl"
+                        : isMine
+                          ? "rounded-2xl rounded-br-sm"
+                          : "rounded-2xl rounded-bl-sm"),
+                  )}
+                >
+                  {videoAtts.map((v: any, i: number) => {
+                    const absoluteIndex = mediaAtts.indexOf(v);
+                    const liveItem = uploadingMedias[absoluteIndex];
+
+                    let currentProgress = 0;
+                    if (liveItem) {
+                      currentProgress =
+                        liveItem.progress >= 100 && isTemp
+                          ? 99
+                          : liveItem.progress;
+                    } else if (isTemp) {
+                      currentProgress = 99;
+                    } else {
+                      currentProgress = 100;
+                    }
+
+                    // গ্রিড কন্ডিশনগুলো
+                    const isGrid = videoAtts.length > 1;
+                    const isThird = videoAtts.length === 3 && i === 2;
+
+                    return (
+                      <div
+                        key={i}
+                        className={cn(
+                          "relative bg-slate-900", // ব্যাকগ্রাউন্ড ব্ল্যাক থাকবে
+                          isGrid
+                            ? videoAtts.length === 2
+                              ? "h-[140px]"
+                              : "h-[112px]" // ৩টির বেশি হলে সবার সাইজ সমান থাকবে
+                            : "h-auto w-full",
+
+                          // ৩য় ভিডিওটি দুই কলাম জুড়ে থাকবে (col-span-2)
+                          isThird && "col-span-2 h-[140px]",
+                        )}
+                      >
+                        <VideoPlayer
+                          url={v.url}
+                          publicId={v.publicId}
+                          name={v.name}
+                          size={v.size}
+                          isMine={isMine}
+                          disabled={isTemp}
+                          uploadProgress={currentProgress}
+                          isGrid={isGrid} // গ্রিড মোড অন করার জন্য পাস করা হলো
+                          hasCaption={hasCaption}
+                          onExpand={() => {
+                            setViewerIndex(
+                              absoluteIndex >= 0 ? absoluteIndex : 0,
+                            );
+                            setViewerOpen(true);
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Voice messages */}
               {voiceAtts.map((a: any, i: number) => (
@@ -1236,7 +1262,7 @@ export default function MessageBubble({ message }: { message: Message }) {
                 </div>
               )}
 
-              {/* Standalone footer (voice/file/video, no caption, no image) */}
+              {/*  footer */}
               {!hasCaption &&
                 mediaAtts.filter((a) => a.type === "image").length === 0 &&
                 (hasVoice || hasFiles || videoAtts.length > 0) && (
@@ -1289,7 +1315,7 @@ export default function MessageBubble({ message }: { message: Message }) {
                 )}
             </div>
 
-            {/*  Reactions (below media bubble)  */}
+            {/*  Reactions  */}
             {hasReactions && (
               <ReactionBar
                 reactions={reactions}
@@ -1316,7 +1342,7 @@ export default function MessageBubble({ message }: { message: Message }) {
           "relative flex items-end gap-2 group bubble-enter transition-all duration-200",
           compactMode ? "mb-0.5" : "mb-3",
           isMine ? "ml-auto flex-row-reverse" : "mr-auto",
-          "max-w-[80%]",
+          "min-w-[72px] max-w-[min(80%,480px)]",
         )}
       >
         <div className="flex flex-col">
@@ -1397,7 +1423,7 @@ export default function MessageBubble({ message }: { message: Message }) {
               {/* Meta row */}
               <div
                 className={cn(
-                  "flex items-center justify-end gap-1 select-none",
+                  "flex items-center justify-end gap-1 select-none whitespace-nowrap",
                   compactMode ? "mt-0" : "mt-1",
                 )}
               >

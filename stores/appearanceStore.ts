@@ -15,7 +15,7 @@ type Wallpaper =
 type timeFormat = "12h" | "24h";
 
 interface AppearanceState {
-  fontStyle: FontStyle;
+  fontStyle: FontStyle; 
   textSize: TextSize;
   bubbleStyle: BubbleStyle;
   wallpaper: Wallpaper;

@@ -97,7 +97,7 @@ const safeDecryptReplyTo = async (
   return { ...replyTo, content: decryptedObj.text } as Message["replyTo"];
 };
 
-// ✅ group message decrypt — no counter, random IV handles uniqueness
+// group message decrypt — no counter, random IV handles uniqueness
 const safeDecryptGroup = async (
   content: string,
   chatId: string,
@@ -150,12 +150,11 @@ export const useChatHistory = (
     queryFn: async ({ pageParam }) => {
       const contact = useChatStore
         .getState()
-        .contacts.find((c) => c._id === contactId || c.customChatId === chatId);
+        .contacts.find((c) => c.id === contactId || c.customChatId === chatId);
 
       const peerPublicKey = contact?.publicKey;
       const isGroup = contact?.isGroupChat ?? false;
 
-      // ✅ group — first load এ participants থেকে sender keys load
       if (isGroup && chatId && !pageParam) {
         const members = (contact?.participants ?? []).filter(
           (p: any) => p.publicKey,
@@ -196,7 +195,7 @@ export const useChatHistory = (
           .then(async (offlineMessages) => {
             if (!offlineMessages?.length) return;
 
-            // ✅ sequential — group decrypt order matters
+            //  sequential — group decrypt order matters
             const decrypted: any[] = [];
             for (const m of offlineMessages.slice(-50)) {
               const raw =
@@ -246,11 +245,11 @@ export const useChatHistory = (
       // API fetch
       const cursor = pageParam ? `&before=${pageParam}` : "";
       const { data } = await api(
-        `/chats/${myId}/${chatId}/${contactId}/?limit=20${cursor}`,
+        `/chats/${chatId}/${contactId}/?limit=20${cursor}`,
       );
       if (!data.success) throw new Error("Failed to load messages from server");
 
-      // ✅ sequential for group — parallel ok for 1-1
+      // sequential for group — parallel ok for 1-1
       const messages: Message[] = [];
 
       if (isGroup && chatId) {

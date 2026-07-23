@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// stores/mediaStore.ts
 import { create } from "zustand";
 import api from "@/lib/axios";
 import { API_URL } from "@/lib/chat-helpers";
@@ -40,7 +39,7 @@ export interface Attachment {
   publicId?: string | null;
   path?: string | null;
   provider: StorageProvider;
-  duration?: number | null; // seconds — voice & video
+  duration?: number | null;
 }
 
 export interface OptimisticPayload {
@@ -61,11 +60,6 @@ export interface ConfirmSuccessPayload {
 
 //  Duration helpers
 
-/**
- * Audio/Video file এর duration বের করো
- * HTML element এর loadedmetadata event — fetch/AudioContext ছাড়া
- * Browser নিজেই partial download করে metadata পড়ে
- */
 function getMediaDuration(
   file: File,
   type: "audio" | "video",
@@ -82,7 +76,7 @@ function getMediaDuration(
     };
 
     el.preload = "metadata";
-    el.muted = true; // video autoplay policy bypass
+    el.muted = true;
     el.src = url;
 
     el.addEventListener(
@@ -104,7 +98,6 @@ function getMediaDuration(
       { once: true },
     );
 
-    // 5s timeout — metadata load না হলে null দাও
     setTimeout(() => {
       cleanup();
       resolve(null);
@@ -202,10 +195,6 @@ function xhrUpload(
   });
 }
 
-//  Single file upload
-
-//  Single file upload
-
 export const getSafeMimeType = (file: File): string => {
   if (file.type) return file.type;
 
@@ -231,7 +220,6 @@ async function uploadSingle(
 ): Promise<Attachment & { provider: StorageProvider }> {
   const { file, type } = media;
 
-  // 🌟 ঠিক আপলোডের আগে নিরাপদ Mime Type বের করে নিলাম
   const safeMimeType = getSafeMimeType(file);
 
   if (type === "image") {
@@ -248,7 +236,7 @@ async function uploadSingle(
       type: "image",
       name: file.name,
       size: file.size,
-      mimeType: safeMimeType, // 👈 এখানে আপডেট হলো
+      mimeType: safeMimeType,
       provider: "cloudinary",
       path: null,
       duration: null,
@@ -280,14 +268,13 @@ async function uploadSingle(
       type: "video",
       name: file.name,
       size: file.size,
-      mimeType: safeMimeType, // 👈 এখানে আপডেট হলো
+      mimeType: safeMimeType,
       provider: "cloudinary",
       path: null,
       duration: cloudData.duration ?? duration,
     };
   }
 
-  // audio / file → Supabase
   const fileType = type === "audio" ? "audio" : "file";
   const signRes = await api.post(`${API_URL}/uploads/sign-supabase`, {
     fileName: file.name,
@@ -299,7 +286,7 @@ async function uploadSingle(
   await xhrUpload(uploadUrl, file, onProgress, {
     method: "PUT",
     skipCredentials: true,
-    extraHeaders: { "Content-Type": safeMimeType }, // 👈 এখানে Supabase-কে টাইপ বলে দিলাম
+    extraHeaders: { "Content-Type": safeMimeType },
   });
 
   return {
@@ -308,7 +295,7 @@ async function uploadSingle(
     type,
     name: file.name,
     size: file.size,
-    mimeType: safeMimeType, // 👈 পেলোডে আর কখনোই "" যাবে না!
+    mimeType: safeMimeType,
     provider: "supabase",
     publicId: null,
     duration: null,
@@ -319,17 +306,23 @@ async function uploadSingle(
 
 const detectType = (file: File): AttachmentType => {
   const mimeType = file.type.toLowerCase();
+  const fileName = file.name.toLowerCase();
+  if (
+    fileName.startsWith("voice_") ||
+    mimeType.includes("webm") ||
+    fileName.endsWith(".webm")
+  ) {
+    return "VoiceMessage";
+  }
 
-  // mimetype check
   if (mimeType.startsWith("image/")) return "image";
   if (mimeType.startsWith("video/")) return "video";
   if (mimeType.startsWith("audio/")) return "audio";
 
-  //if mimetype not provided, try to guess from extension
-  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  const ext = fileName.split(".").pop() || "";
   if (["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext))
     return "image";
-  if (["mp4", "webm", "mov", "mkv", "avi"].includes(ext)) return "video";
+  if (["mp4", "mov", "mkv", "avi"].includes(ext)) return "video";
   if (["mp3", "wav", "ogg", "m4a", "aac"].includes(ext)) return "audio";
 
   return "file";
@@ -399,7 +392,7 @@ export const useMediaStore = create<MediaState>((set, get) => ({
       valid.push({
         id: `${Date.now()}_${Math.random().toString(36).slice(2)}`,
         file: processedFile,
-        previewUrl: type === "image" ? URL.createObjectURL(processedFile) : "",
+        previewUrl: URL.createObjectURL(processedFile),
         type,
       });
     }
@@ -424,7 +417,6 @@ export const useMediaStore = create<MediaState>((set, get) => ({
     set({ selectedMedias: [], uploadError: null, uploadingMedias: [] });
   },
 
-  //  Regular media upload
   uploadAndConfirm: async (chatId, text, onOptimistic, onSuccess, onError) => {
     const { selectedMedias } = get();
     if (selectedMedias.length === 0) return;
@@ -466,9 +458,11 @@ export const useMediaStore = create<MediaState>((set, get) => ({
       const uploaded = await Promise.all(
         snapshot.map((m) =>
           uploadSingle(m, (pct) => {
+            const safePct = pct >= 100 ? 99 : pct;
+
             set((s) => ({
               uploadingMedias: s.uploadingMedias.map((u) =>
-                u.id === m.id ? { ...u, progress: pct, done: pct === 100 } : u,
+                u.id === m.id ? { ...u, progress: safePct, done: false } : u,
               ),
             }));
           }),
@@ -487,6 +481,7 @@ export const useMediaStore = create<MediaState>((set, get) => ({
       snapshot.forEach((m) => {
         if (m.previewUrl) URL.revokeObjectURL(m.previewUrl);
       });
+
       set({ isUploading: false, uploadingMedias: [] });
 
       if (confirmRes.data.success) {
@@ -513,7 +508,6 @@ export const useMediaStore = create<MediaState>((set, get) => ({
     }
   },
 
-  //  Voice message upload
   uploadVoice: async (file, chatId, onOptimistic, onSuccess, onError) => {
     const tempId = `temp_${Date.now()}`;
     const previewUrl = URL.createObjectURL(file);
@@ -558,24 +552,27 @@ export const useMediaStore = create<MediaState>((set, get) => ({
       const uploadedAtt = await uploadSingle(
         { id: mediaId, file, previewUrl, type: "audio" },
         (pct) => {
+          const safePct = pct >= 100 ? 99 : pct;
           set((s) => ({
             uploadingMedias: s.uploadingMedias.map((u) =>
-              u.id === mediaId ? { ...u, progress: pct, done: pct === 100 } : u,
+              u.id === mediaId ? { ...u, progress: safePct, done: false } : u,
             ),
           }));
         },
       );
 
-      // type override + duration attach
-      uploadedAtt.type = "VoiceMessage";
-      uploadedAtt.duration = duration;
+      const voiceAttachment = {
+        ...uploadedAtt,
+        type: "VoiceMessage",
+        duration: duration,
+      };
 
       const confirmRes = await api.post(
         `${API_URL}/uploads/confirm-attachment`,
         {
           chatId,
           text: "",
-          attachments: [uploadedAtt],
+          attachments: [voiceAttachment],
         },
       );
 

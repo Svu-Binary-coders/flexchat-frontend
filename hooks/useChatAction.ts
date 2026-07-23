@@ -26,7 +26,6 @@ const updateContactCache = (
 };
 
 //  1. Global Lock Password Set
-// PUT /chats/add-lock-password
 export const useSetLockPasswordGlobal = () => {
   const queryClient = useQueryClient();
 

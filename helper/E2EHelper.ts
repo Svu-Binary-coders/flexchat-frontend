@@ -1,8 +1,29 @@
+"use client";
+
 import { FCPEngine, SessionManager, KeyManager, FCPVersion } from "@/core/e2e";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/authStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
 async function ensureKeys() {
   let { privateKey, signingKey } = useSessionStore.getState();
+  // check is are in indexDB
+  const hasOwnKey = await KeyManager.hasOwnKeys();
+  if (!hasOwnKey) {
+    // logout user if no keys found in indexD
+    console.log("No keys found in KeyManager, logging out user...");
+    useAuthStore.getState().logout();
+    // navigate to login page
+    try {
+      const { data } = await api.delete("/auth/clear-cookies");
+      if (data.success) {
+        // navigate to login page
+        window.location.href = "/login";
+      }
+    } catch (error) {
+      console.error("Error clearing cookies:", error);
+    }
+  }
 
   //   if can not find keys in store, try loading from IndexedDB (KeyManager) and update the store
   if (!privateKey || !signingKey) {
@@ -24,6 +45,7 @@ async function ensureKeys() {
         });
       }
     } catch (error) {
+      // if keymager has no keys, it will throw an error, so we need to catch it
       console.error("Some error to seeing the keys", error);
     }
   }
@@ -49,7 +71,6 @@ export async function secureEncryptMessage(
   try {
     const { privateKey, signingKey } = await ensureKeys();
     if (!privateKey || !signingKey) return null;
-
     const { getChatKey } = await SessionManager.bootstrapSession(
       privateKey,
       friendPublicKey,

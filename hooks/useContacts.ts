@@ -25,11 +25,11 @@ export const useContacts = (userId: string) => {
     queryKey: ["contacts", userId],
     networkMode: "offlineFirst",
     queryFn: async () => {
-      const { data } = await api.get(`/chats/${userId}/contacts`);
+      const { data } = await api.get(`/chats/contacts`);
       if (!data.success) throw new Error("Failed to load contacts");
 
       // load all contact settings via chatSettingsStore
-        useChatSettingsStore.getState().loadAll();
+      useChatSettingsStore.getState().loadAll();
 
       return data.contacts;
     },
@@ -48,7 +48,7 @@ export const useContacts = (userId: string) => {
           if (!c.lastMessage || typeof c.lastMessage.content !== "string") {
             return c;
           }
- if (c.isGroupChat) return c;
+          if (c.isGroupChat) return c;
           const content = c.lastMessage.content;
           if (!isEncrypted(content)) return c;
 
@@ -98,11 +98,11 @@ export const useContacts = (userId: string) => {
       decryptedContacts.forEach((c: Contact) => {
         socket?.emit(
           "check_status",
-          c._id,
+          c.id,
           ({ online }: { online: boolean }) => {
             useChatStore.setState((s) => ({
               contacts: s.contacts.map((x) =>
-                x._id === c._id ? { ...x, isOnline: online } : x,
+                x.id === c.id ? { ...x, isOnline: online } : x,
               ),
             }));
           },

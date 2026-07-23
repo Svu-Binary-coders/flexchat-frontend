@@ -26,8 +26,6 @@ export function useServiceWorker() {
       })
       .catch((err) => console.error("[SW] Registration failed:", err));
 
-    // প্রতি ঘন্টায় expired cache purge করো
-    // (SW activate এও একবার হয়, এটা long session এর জন্য)
     const purgeInterval = setInterval(
       () => {
         triggerPurge();
@@ -39,7 +37,6 @@ export function useServiceWorker() {
   }, []);
 }
 
-//  SW তে message পাঠানোর helper
 function sendSWMessage(type: string): Promise<void> {
   return new Promise((resolve) => {
     if (!navigator.serviceWorker?.controller) {
@@ -49,24 +46,20 @@ function sendSWMessage(type: string): Promise<void> {
     const channel = new MessageChannel();
     channel.port1.onmessage = () => resolve();
     navigator.serviceWorker.controller.postMessage({ type }, [channel.port2]);
-    // 3s timeout — SW respond না করলে resolve
     setTimeout(resolve, 3000);
   });
 }
 
-/** Expired (5h+) media entries purge করো */
 export async function triggerPurge(): Promise<void> {
   if (typeof window === "undefined") return;
   await sendSWMessage("PURGE_EXPIRED");
 }
 
-/** পুরো media cache clear করো (Settings page এ "Clear Cache" button) */
 export async function clearMediaCache(): Promise<void> {
   if (typeof window === "undefined") return;
   await sendSWMessage("CLEAR_MEDIA_CACHE");
 }
 
-/** Cache এ কতটা entry আছে */
 export async function getMediaCacheSize(): Promise<number> {
   if (!("caches" in window)) return 0;
   try {
@@ -78,7 +71,6 @@ export async function getMediaCacheSize(): Promise<number> {
   }
 }
 
-/** নির্দিষ্ট URL cache এ আছে কিনা (এবং expire হয়নি) */
 export async function isMediaCached(url: string): Promise<boolean> {
   if (!("caches" in window)) return false;
   try {

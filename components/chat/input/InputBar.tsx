@@ -252,12 +252,11 @@ export default function InputBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const emojiRef = useRef<HTMLDivElement>(null);
 
-  //  Store → local sync (emoji, edit prefill, Esc clear)
+  //  Store -> local sync (emoji, edit prefill, Esc clear)
   useEffect(() => {
     setLocalInput(msgInput);
   }, [msgInput]);
 
-  //  reply/edit হলে input focus
   useEffect(() => {
     if (replyTo || editingMsg) {
       const t = setTimeout(() => inputRef.current?.focus(), 80);
@@ -290,13 +289,11 @@ export default function InputBar() {
     // 1. Local state — instant
     setLocalInput(value);
 
-    // 2. Store sync — 50ms debounce (input violation এড়াতে)
     clearTimeout(storeUpdateTimerRef.current);
     storeUpdateTimerRef.current = setTimeout(() => {
       useChatStore.setState({ msgInput: value });
-    }, 50);
+    }, 20);
 
-    // 3. Typing socket — chatRoomId দিয়ে (1-1 এবং group দুটোতেই কাজ করে)
     if (!activeContact?.customChatId) return;
     const socket = useChatStore.getState().socket;
 
@@ -311,7 +308,6 @@ export default function InputBar() {
     }, 2000);
   };
 
-  //  contact বদলালে বা unmount এ typing stop
   useEffect(() => {
     return () => {
       clearTimeout(typingTimerRef.current);
@@ -351,7 +347,8 @@ export default function InputBar() {
       id: "picker-file",
       icon: FileText,
       label: "File",
-      accept: ".pdf,.zip,.rar,.doc,.docx,.xls,.xlsx,.txt,.csv",
+      accept:
+        ".pdf,.zip,.rar,.doc,.docx,.xls,.xlsx,.txt,.csv,.tsx,.ts,.js,.jsx,.json,.md,.ppt,.pptx,.epub,.apk,.exe,.dmg,.iso,.bin,.img,.7z",
       multiple: true,
     },
   ] as const;
@@ -403,7 +400,6 @@ export default function InputBar() {
   const onSendMessage = async () => {
     if (!activeContact?.customChatId) return;
 
-    // send এর আগে typing stop + store instant sync
     clearTimeout(typingTimerRef.current);
     clearTimeout(storeUpdateTimerRef.current);
     useChatStore.setState({ msgInput: localInput });
@@ -512,6 +508,7 @@ export default function InputBar() {
         </div>
       )}
 
+      {/* reply  */}
       {replyTo &&
         !editingMsg &&
         (() => {
@@ -524,58 +521,89 @@ export default function InputBar() {
           const voices = atts.filter((a: any) => a.type === "VoiceMessage");
           const hasAtts = atts.length > 0 || (replyTo as any).hasAttachments;
           const msgType = (replyTo as any).messageType;
+          const senderName =
+            (replyTo as any).senderDetails?.userName ?? "Unknown";
+          const textContent = safeStr((replyTo as any).content);
 
-          if (imgs.length > 0)
-            return (
-              <Image
-                src={imgs[0].url as string  ||"/default_image.png"}
-                alt=" reply image"
-                className="w-9 h-9 rounded-lg object-cover shrink-0 ring-1 ring-sky-200"
-                width={36}
-                height={36}
-              />
-            );
+          const getPreviewLabel = () => {
+            if (imgs.length > 0) return "Photo";
+            if (vids.length > 0) return "Video";
+            if (voices.length > 0) return "Voice message";
+            if (files.length > 0) return files[0].name ?? "File";
+            if (hasAtts) {
+              if (msgType === "media") return "Photo";
+              if (msgType === "voice") return "Voice message";
+              if (msgType === "file") return "File";
+            }
+            return textContent || "Message";
+          };
 
-          if (files.length > 0)
-            return (
-              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
-                <FileIcon mimeType={files[0].mimeType} className="h-4 w-4" />
+          return (
+            <div className="relative flex items-center gap-3 mb-3 pl-3 pr-10 py-2.5 rounded-xl bg-sky-50/80 border-l-4 border-sky-400 dark:bg-sky-950/30 dark:border-sky-500 animate-in slide-in-from-bottom-2 duration-200">
+              {imgs.length > 0 ? (
+                <Image
+                  src={(imgs[0].url as string) || "/default_image.png"}
+                  alt="reply preview"
+                  className="w-13 h-13 rounded-lg object-cover shrink-0 ring-1 ring-sky-200 dark:ring-sky-800"
+                  width={52}
+                  height={52}
+                />
+              ) : files.length > 0 ? (
+                <div className="w-13 h-13 rounded-lg bg-orange-100 dark:bg-orange-900/40 flex items-center justify-center shrink-0">
+                  <FileIcon mimeType={files[0].mimeType} className="h-6 w-6" />
+                </div>
+              ) : vids.length > 0 ? (
+                <div className="w-13 h-13 rounded-lg bg-slate-800 relative overflow-hidden shrink-0">
+                  <Image
+                    src={vids[0].url.replace(/\.(mp4|mov|webm)$/, ".jpg")}
+                    alt="video reply"
+                    className="w-full h-full object-cover opacity-70"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                    loading="lazy"
+                  />
+                  <Film className="absolute inset-0 m-auto h-5 w-5 text-white" />
+                </div>
+              ) : voices.length > 0 ? (
+                <div className="w-13 h-13 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                  <Mic className="h-6 w-6 text-sky-500" />
+                </div>
+              ) : hasAtts && atts.length === 0 ? (
+                <div className="w-13 h-13 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
+                  {msgType === "media" && (
+                    <ImageIcon className="h-6 w-6 text-sky-500" />
+                  )}
+                  {msgType === "voice" && (
+                    <Mic className="h-6 w-6 text-sky-500" />
+                  )}
+                  {msgType === "file" && (
+                    <FileText className="h-6 w-6 text-sky-500" />
+                  )}
+                </div>
+              ) : null}
+
+              {/* Text content — sender name + preview */}
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-sky-600 dark:text-sky-400">
+                  <CornerUpRight className="h-3 w-3" />
+                  Replying to {senderName}
+                </span>
+                <span className="text-sm text-slate-600 dark:text-slate-300 truncate mt-0.5">
+                  {getPreviewLabel()}
+                </span>
               </div>
-            );
 
-          //  Video
-          if (vids.length > 0)
-            return (
-              <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center shrink-0">
-                <Film className="h-4 w-4 text-white/60" />
-              </div>
-            );
-
-          //  Voice
-          if (voices.length > 0)
-            return (
-              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
-                <Mic className="h-4 w-4 text-sky-500" />
-              </div>
-            );
-
-          //  Fallback — populated না কিন্তু hasAttachments true
-          if (hasAtts && atts.length === 0)
-            return (
-              <div className="w-9 h-9 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center shrink-0">
-                {msgType === "media" && (
-                  <ImageIcon className="h-4 w-4 text-sky-500" />
-                )}
-                {msgType === "voice" && (
-                  <Mic className="h-4 w-4 text-sky-500" />
-                )}
-                {msgType === "file" && (
-                  <FileText className="h-4 w-4 text-sky-500" />
-                )}
-              </div>
-            );
-
-          return null;
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearContext}
+                className="absolute top-1/2 -translate-y-1/2 right-2 h-7 w-7 rounded-full hover:bg-sky-100 dark:hover:bg-sky-900/50 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
         })()}
 
       {/* Live Link Preview */}
@@ -636,6 +664,7 @@ export default function InputBar() {
             </Button>
           </div>
         )}
+
       {/* Media strip */}
       {(selectedMedias.length > 0 || uploadingMedias.length > 0) && (
         <div className="flex items-end gap-2 mb-3 overflow-x-auto pb-1 scrollbar-none">

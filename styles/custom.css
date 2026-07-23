@@ -36,7 +36,12 @@ small { font-size: 0.8em; }
   background: #999;
 }
 
-/* Vertical scrollbar */
 ::-webkit-scrollbar-vertical {
   width: 2px;
+}
+
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
 }

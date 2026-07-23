@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const token = request.cookies.get("FCAccessToken")?.value;
   const pathname = request.nextUrl.pathname;
 

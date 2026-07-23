@@ -48,7 +48,7 @@ export default function ChatHeader({
       >
         <div className="relative shrink-0">
           <Avatar className="h-10 w-10 border border-slate-200 dark:border-slate-700">
-            <AvatarImage src={activeContact.avatar} />
+            <AvatarImage src={activeContact.profile_image} />
             <AvatarFallback className="bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:text-slate-200 text-sm font-semibold transition-colors">
               {initials}
             </AvatarFallback>

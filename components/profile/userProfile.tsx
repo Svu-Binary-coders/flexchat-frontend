@@ -40,17 +40,17 @@ import {
 
 // --- Types ---
 interface UserProfile {
-  _id: string;
-  userName: string;
-  userEmail: string;
-  customId: string;
-  profilePicture?: string;
+  id: string;
+  name: string;
+  email: string;
+  user_id: string;
+  profile_image?: string;
   bio?: string;
   isOnline?: boolean;
   lastSeen?: string;
   location?: { city: string; country: string };
   website?: string;
-  createdAt?: string;
+  create_at?: string;
 }
 
 interface SharedMedia {
@@ -115,7 +115,7 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
   const { togglePin, toggleFavorite, contacts, openChat } = useChatStore();
 
   const contactStoreData = useMemo(() => {
-    return contacts.find((c) => c._id === userId);
+    return contacts.find((c) => c.id === userId);
   }, [contacts, userId]);
 
   const isPinned = contactStoreData?.isPinned || false;
@@ -377,9 +377,9 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
               <div className="flex flex-col items-center py-8 bg-gradient-to-b from-blue-500 to-blue-600 dark:from-slate-800 dark:to-slate-900">
                 <div className="relative">
                   <Avatar className="w-24 h-24 border-4 border-white dark:border-slate-800 shadow-md">
-                    <AvatarImage src={user.profilePicture} />
+                    <AvatarImage src={user.profile_image} />
                     <AvatarFallback className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-3xl font-bold">
-                      {user.userName.slice(0, 2).toUpperCase()}
+                      {user.name?.slice(0, 2).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   {user.isOnline && (
@@ -387,7 +387,7 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                   )}
                 </div>
                 <h2 className="mt-3 text-[20px] font-semibold text-white">
-                  {user.userName}
+                  {user.name}
                 </h2>
                 <p className="text-blue-100 dark:text-slate-400 text-[13px] mt-1 flex items-center gap-1.5">
                   {user.isOnline ? (
@@ -464,8 +464,8 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                   <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-1">
                     {isMediaLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin text-slate-400 m-auto" />
-                    ) : mediaItems.length > 0 ? (
-                      mediaItems.slice(0, 5).map((item, index) => (
+                    ) : mediaItems?.length > 0 ? (
+                      mediaItems?.slice(0, 5).map((item, index) => (
                         <div
                           key={index}
                           className="w-[72px] h-[72px] rounded-lg bg-slate-200 dark:bg-slate-700 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity overflow-hidden relative"
@@ -515,12 +515,12 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
               <PanelSection>
                 <PanelRow
                   icon={<Mail className="w-4 h-4" />}
-                  label={user.userEmail}
+                  label={user.email}
                   sub="Email"
                 />
                 <PanelRow
                   icon={<AtSign className="w-4 h-4" />}
-                  label={`@${user.customId}`}
+                  label={`@${user.user_id}`}
                   sub="User ID"
                 />
                 {user.location && (
@@ -538,10 +538,10 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                     isLink
                   />
                 )}
-                {user.createdAt && (
+                {user.create_at && (
                   <PanelRow
                     icon={<Calendar className="w-4 h-4" />}
-                    label={fmtTime(user.createdAt)}
+                    label={fmtTime(user.create_at)}
                     sub="Member since"
                     last
                   />
@@ -555,8 +555,6 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                     Chat Settings
                   </p>
                 </div>
-
-                {/* 📍 Settings List: এখানে আমরা টগল বা চেকবক্স বসাবো */}
                 <div className="flex flex-col gap-4 px-5 pb-4">
                   {/* ১. Copy Text Permission */}
                   <div className="flex items-center justify-between">
@@ -623,7 +621,6 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
                   </div>
                 </div>
 
-                {/* (Optional) শুধু দেখানোর জন্য যে সেটিং কাজ করছে */}
                 <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Status:{" "}
@@ -673,7 +670,7 @@ export default function ProfilePanel({ userId, open, onClose }: Props) {
               <PanelSection className="mb-8 border-t-0">
                 <DangerRow
                   icon={<Ban className="w-4 h-4" />}
-                  label={`Block @${user.customId}`}
+                  label={`Block @${user.user_id}`}
                 />
                 <DangerRow
                   icon={<Flag className="w-4 h-4" />}

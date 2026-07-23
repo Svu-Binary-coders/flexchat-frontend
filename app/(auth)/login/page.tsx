@@ -108,8 +108,6 @@ export default function LoginPage() {
       // Try loading identity from local IndexedDB
       try {
         identityKeys = await KeyManager.loadIdentity(loggedInUserId, pin);
-
-
       } catch (error) {
         // New device detected - restore identity from server backup
         console.log("New device detected - restoring identity from server");
@@ -150,30 +148,12 @@ export default function LoginPage() {
 
       // Restore backup key
       let backupKey: CryptoKey | null = null;
-      let chatKeyMap = new Map<string, CryptoKey>();
 
       if (loggedInEncBackup) {
         backupKey = await BackupManager.restoreBackupKey(
           masterKey,
           loggedInEncBackup,
         );
-
-        // Restore all chat keys
-        try {
-          const encChatKeysRes = await api.get(
-            `/users/chat-keys/${loggedInUserId}`,
-          );
-          const encChatKeys = encChatKeysRes.data.chatKeys || [];
-
-          if (encChatKeys.length > 0) {
-            chatKeyMap = await BackupManager.restoreAllChatKeys(
-              backupKey,
-              encChatKeys,
-            );
-          }
-        } catch {
-          console.log("No chat keys found - normal for new users");
-        }
       }
 
       // Store session in Zustand
@@ -182,7 +162,6 @@ export default function LoginPage() {
         privateKey,
         signingKey,
         backupKey,
-        chatKeyMap,
         needPin: false,
       });
 
